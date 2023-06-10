@@ -12,3 +12,6 @@ class Potential:
 
     def __call__(self, *args, **kwargs):
         return self.compute(*args, **kwargs)
+
+    def sample(self, batch_shape: Union[torch.Size, Tuple[int]]) -> torch.Tensor:
+        raise NotImplementedError

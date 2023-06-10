@@ -1,0 +1,1 @@
+from potentials.benchmarks.gaussian_mixture import GaussianMixture2D

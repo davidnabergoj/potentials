@@ -1,3 +1,5 @@
+from typing import Tuple, Union
+
 import torch
 
 from potentials.base import Potential
@@ -12,3 +14,6 @@ class FullRankGaussian(Potential):
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
         return -self.dist.log_prob(x)
+
+    def sample(self, batch_shape: Union[torch.Size, Tuple[int]]) -> torch.Tensor:
+        return self.dist.sample(batch_shape)
