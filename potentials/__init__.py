@@ -1,0 +1,1 @@
+from potentials.synthetic.gaussian import StandardGaussian, DiagonalGaussian
