@@ -30,4 +30,7 @@ class Funnel(Potential):
         return u_x1 + u_xi
 
     def sample(self, batch_shape: Union[torch.Size, Tuple[int]]) -> torch.Tensor:
-        pass
+        x = torch.zeros(*batch_shape, self.n_dim)
+        x[..., 0] = torch.randn(*batch_shape) * 3
+        x[..., 1:self.n_dim] = torch.randn(*batch_shape, self.n_dim - 1) * torch.exp(x[..., 0][..., None] / 2)
+        return x
