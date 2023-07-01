@@ -1,16 +1,16 @@
 import torch
 from typing import Union, Tuple
 
-from potentials.base import Potential
+from potentials.base import PotentialSimple
 from potentials.synthetic.gaussian.diagonal import DiagonalGaussian, gaussian_potential
 from potentials.utils import get_batch_shape, sum_except_batch
 
 
-class Funnel(Potential):
+class Funnel(PotentialSimple):
     def __init__(self, n_dim: int = 100):
         # p(x1) = N(.; 0, sigma=3)
         # p(xi) = N(.; 0, sigma=exp(x1/2))
-        super().__init__(event_shape=(n_dim,))
+        super().__init__(n_dim=n_dim)
         self.n_dim = n_dim
         self.base_dist = DiagonalGaussian(mu=torch.Tensor([0.0]), sigma=torch.Tensor([3.0]))
 

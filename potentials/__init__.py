@@ -1,3 +1,3 @@
-from potentials.synthetic.gaussian import StandardGaussian
-from potentials.synthetic.gaussian_mixture import GaussianMixture2D
 from potentials.synthetic.funnel import Funnel
+from potentials.synthetic.gaussian.full_rank import IllConditionedGaussian
+from potentials.synthetic.gaussian_mixture import GaussianMixture2D

@@ -15,3 +15,14 @@ class Potential:
 
     def sample(self, batch_shape: Union[torch.Size, Tuple[int]]) -> torch.Tensor:
         raise NotImplementedError
+
+
+class PotentialSimple(Potential):
+    """
+    Potential with a length one event shape.
+    """
+
+    def __init__(self, n_dim: int):
+        self.n_dim = n_dim
+        event_shape = (n_dim,)
+        super().__init__(event_shape=event_shape)
