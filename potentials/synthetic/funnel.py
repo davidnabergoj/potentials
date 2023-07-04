@@ -12,13 +12,13 @@ class Funnel(PotentialSimple):
         # p(xi) = N(.; 0, sigma=exp(x1/2))
         super().__init__(n_dim=n_dim)
         self.n_dim = n_dim
-        self.base_dist = DiagonalGaussian(mu=torch.Tensor([0.0]), sigma=torch.Tensor([3.0]))
+        self.base_potential = DiagonalGaussian(mu=torch.Tensor([0.0]), sigma=torch.Tensor([3.0]))
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
         # p(x) = p(x1) * prod_{i=2}^100 p(xi|x1)
         # x.shape = (*batch_shape, n_dim)
         batch_shape = get_batch_shape(x, self.event_shape)
-        u_x1 = self.base_dist(x[..., 0][..., None])  # Take the first dim
+        u_x1 = self.base_potential(x[..., 0][..., None])  # Take the first dim
 
         xi = x[..., 1:]  # (*batch_shape, n_dim - 1)
         mu = torch.zeros_like(xi)  # (*batch_shape, n_dim - 1)
