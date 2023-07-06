@@ -37,5 +37,6 @@ class IllConditionedGaussian(FullRankGaussian):
         q, r = torch.linalg.qr(torch.tensor(rng.randn(n_dim, n_dim)))
         q *= torch.sign(torch.diag(r))
         cov = (q * eigvals) @ q.T
+        self.cov = cov
         self.n_dim = n_dim
         super().__init__(mu, cov)
