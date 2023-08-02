@@ -36,7 +36,7 @@ def load_german_credit():
 class GermanCredit(Potential):
     def __init__(self):
         self.features, self.labels = load_german_credit()
-        super().__init__((25,))
+        super().__init__((26,))
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
         assert x.shape[-1] == 26
