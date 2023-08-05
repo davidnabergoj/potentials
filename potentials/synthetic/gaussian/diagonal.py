@@ -8,7 +8,7 @@ from potentials.utils import get_batch_shape, unsqueeze_to_batch
 
 
 def gaussian_potential(x: torch.Tensor, mu: torch.Tensor, sigma: torch.Tensor):
-    return 0.5 * ((x - mu) / sigma) ** 2 + 0.5 * torch.log(2 * math.pi * sigma)
+    return 0.5 * ((x - mu) / sigma) ** 2 + 0.5 * math.log(2 * math.pi) + torch.log(sigma)
 
 
 class DiagonalGaussian(Potential):
