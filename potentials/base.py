@@ -1,10 +1,12 @@
 from typing import Union, Tuple
 
 import torch
+import torch.nn as nn
 
 
-class Potential:
+class Potential(nn.Module):
     def __init__(self, event_shape: Union[torch.Size, Tuple[int, ...]]):
+        super().__init__()
         self.event_shape = event_shape
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
