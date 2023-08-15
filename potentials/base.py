@@ -12,6 +12,11 @@ class Potential(nn.Module):
     def compute(self, x: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
 
+    def compute_grad(self, x: torch.Tensor):
+        x_clone = torch.clone(x)
+        x_clone.requires_grad_(True)
+        return torch.autograd.grad(self.compute(x_clone).sum(), x_clone)[0].detach()
+
     def __call__(self, *args, **kwargs):
         return self.compute(*args, **kwargs)
 
