@@ -29,3 +29,11 @@ class DiagonalGaussian(Potential):
         mu = unsqueeze_to_batch(self.mu, batch_shape)
         sigma = unsqueeze_to_batch(self.sigma, batch_shape)
         return torch.randn(*batch_shape, *self.event_shape).to(self.mu) * sigma + mu
+
+    @property
+    def variance(self):
+        return self.sigma ** 2
+
+    @property
+    def mean(self):
+        return self.mu
