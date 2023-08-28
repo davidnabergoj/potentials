@@ -9,6 +9,20 @@ class Potential(nn.Module):
         super().__init__()
         self.event_shape = event_shape
 
+    @property
+    def variance(self):
+        """
+        :return: marginal variances for each dimension.
+        """
+        raise NotImplementedError
+
+    @property
+    def mean(self):
+        """
+        :return: mean for each dimension.
+        """
+        raise NotImplementedError
+
     def compute(self, x: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
 

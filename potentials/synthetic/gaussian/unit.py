@@ -17,3 +17,11 @@ class StandardGaussian(Potential):
 
     def sample(self, batch_shape: Union[torch.Size, Tuple[int]]) -> torch.Tensor:
         return torch.randn(*batch_shape, *self.event_shape)
+
+    @property
+    def mean(self):
+        return torch.zeros(size=self.event_shape)
+
+    @property
+    def variance(self):
+        return torch.ones(size=self.event_shape)
