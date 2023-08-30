@@ -23,6 +23,10 @@ class Potential(nn.Module):
         """
         raise NotImplementedError
 
+    @property
+    def second_moment(self):
+        return self.variance + self.mean ** 2
+
     def compute(self, x: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
 
