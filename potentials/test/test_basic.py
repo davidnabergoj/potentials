@@ -2,8 +2,6 @@ import pytest
 import torch
 
 from potentials.base import PotentialSimple
-from potentials.synthetic.gaussian.full_rank import IllConditionedGaussian
-from potentials.synthetic.gaussian_mixture import GaussianMixture2D
 
 from potentials.synthetic.funnel import Funnel
 
