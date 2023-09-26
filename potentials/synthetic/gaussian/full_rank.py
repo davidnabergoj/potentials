@@ -3,7 +3,19 @@ from typing import Tuple, Union
 import numpy as np
 import torch
 
-from potentials.base import Potential, PotentialSimple
+from potentials.base import Potential
+
+
+def generate_rotation_matrix(n_dim: int, seed):
+    rng = np.random.RandomState(seed=seed)
+    noise = rng.randn(n_dim, n_dim)
+    q, r = np.linalg.qr(noise)
+    # q *= np.sign(np.diag(r))
+
+    # Multiply with a random unitary diagonal matrix to get a uniform sample from the Stiefel manifold.
+    # https://stackoverflow.com/a/38430739
+    q *= np.diag(np.exp(1j * np.pi * 2 * np.random.rand(n_dim)))
+    return q
 
 
 class FullRankGaussian(Potential):
@@ -23,20 +35,107 @@ class FullRankGaussian(Potential):
         return self.dist.sample(batch_shape)
 
 
-class IllConditionedGaussian(FullRankGaussian):
+class DecomposedFullRankGaussian(FullRankGaussian):
     """
-    Covariance has eigenvalues sampled from a Gamma, then we rotate it with a random orthogonal matrix.
+    Full rank Gaussian distribution with its covariance matrix decomposed as q @ d @ q.T
+    where q is orthonormal and d is diagonal with eigenvalues.
+    """
 
-    https://github.com/tensorflow/probability/blob/main/spinoffs/inference_gym/inference_gym/targets/ill_conditioned_gaussian.py
+    def __init__(self, mu: torch.Tensor, eigenvalues: torch.Tensor, seed: int = 0):
+        assert len(eigenvalues.shape) == 1
+        q = generate_rotation_matrix(n_dim=len(eigenvalues), seed=seed)
+        self.q = q
+        self.eigenvalues = eigenvalues
+        self.cov = q @ eigenvalues @ q.T
+        super().__init__(mu, self.cov)
+
+
+class FullRankGaussian0(DecomposedFullRankGaussian):
+    """
+    Eigenvalues are reciprocals of Gamma distribution samples.
+    Rotation matrix sampled uniformly from Stiefel manifold.
     """
 
     def __init__(self, n_dim: int = 100, gamma_shape: float = 0.5, seed: int = 0):
         mu = torch.zeros(n_dim)
-        rng = np.random.RandomState(seed=seed & (2 ** 32 - 1))
-        eigvals = 1 / np.sort(rng.gamma(shape=gamma_shape, scale=1.0, size=n_dim))
-        q, r = torch.linalg.qr(torch.tensor(rng.randn(n_dim, n_dim)))
-        q *= torch.sign(torch.diag(r))
-        cov = (q * eigvals) @ q.T
-        self.cov = cov
-        self.n_dim = n_dim
-        super().__init__(mu, cov)
+        rng = np.random.RandomState(seed=seed)
+        eigenvalues = torch.as_tensor(1 / np.sort(rng.gamma(shape=gamma_shape, scale=1.0, size=n_dim)))
+        super().__init__(mu, eigenvalues)
+
+
+class FullRankGaussian1(DecomposedFullRankGaussian):
+    """
+    Eigenvalues are 1.
+    Rotation matrix sampled uniformly from Stiefel manifold.
+    """
+
+    def __init__(self, n_dim: int = 100):
+        mu = torch.zeros(n_dim)
+        eigenvalues = torch.ones(n_dim)
+        super().__init__(mu, eigenvalues)
+
+
+class FullRankGaussian2(DecomposedFullRankGaussian):
+    """
+    Eigenvalues are linearly spaced between 1 and 10.
+    Rotation matrix sampled uniformly from Stiefel manifold.
+    """
+
+    def __init__(self, n_dim: int = 100):
+        mu = torch.zeros(n_dim)
+        eigenvalues = torch.linspace(1, 10, n_dim)
+        super().__init__(mu, eigenvalues)
+
+
+class FullRankGaussian3(DecomposedFullRankGaussian):
+    """
+    Log of the eigenvalues sampled from standard normal.
+    Rotation matrix sampled uniformly from Stiefel manifold.
+    """
+
+    def __init__(self, n_dim: int = 100, seed: int = 0):
+        mu = torch.zeros(n_dim)
+        rng = np.random.RandomState(seed=seed)
+        eigenvalues = torch.as_tensor(np.exp(rng.randn(n_dim)))
+        super().__init__(mu, eigenvalues)
+
+
+class FullRankGaussian4(DecomposedFullRankGaussian):
+    """
+    First eigenvalue is 1000, remainder are 1.
+    Rotation matrix sampled uniformly from Stiefel manifold.
+    """
+
+    def __init__(self, n_dim: int = 100):
+        mu = torch.zeros(n_dim)
+        eigenvalues = torch.ones(n_dim)
+        eigenvalues[0] = 1000
+        super().__init__(mu, eigenvalues)
+
+
+class FullRankGaussian5(DecomposedFullRankGaussian):
+    """
+    First eigenvalue is 1000, second eigenvalue is 1/1000, remainder are 1.
+    Rotation matrix sampled uniformly from Stiefel manifold.
+    """
+
+    def __init__(self, n_dim: int = 100):
+        assert n_dim >= 2
+        mu = torch.zeros(n_dim)
+        eigenvalues = torch.ones(n_dim)
+        eigenvalues[0] = 1000
+        eigenvalues[1] = 1 / 1000
+        super().__init__(mu, eigenvalues)
+
+
+class FullRankGaussian6(DecomposedFullRankGaussian):
+    """
+    Eigenvalues linearly space between 1/1000 and 1000.
+    Rotation matrix sampled uniformly from Stiefel manifold.
+    """
+
+    def __init__(self, n_dim: int = 100):
+        assert n_dim >= 2
+        mu = torch.zeros(n_dim)
+        eigenvalues = torch.linspace(1 / 1000, 1000, n_dim)
+        super().__init__(mu, eigenvalues)
