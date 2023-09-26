@@ -65,18 +65,6 @@ class FullRankGaussian0(DecomposedFullRankGaussian):
 
 class FullRankGaussian1(DecomposedFullRankGaussian):
     """
-    Eigenvalues are 1.
-    Rotation matrix sampled uniformly from Stiefel manifold.
-    """
-
-    def __init__(self, n_dim: int = 100):
-        mu = torch.zeros(n_dim)
-        eigenvalues = torch.ones(n_dim)
-        super().__init__(mu, eigenvalues)
-
-
-class FullRankGaussian2(DecomposedFullRankGaussian):
-    """
     Eigenvalues are linearly spaced between 1 and 10.
     Rotation matrix sampled uniformly from Stiefel manifold.
     """
@@ -87,7 +75,7 @@ class FullRankGaussian2(DecomposedFullRankGaussian):
         super().__init__(mu, eigenvalues)
 
 
-class FullRankGaussian3(DecomposedFullRankGaussian):
+class FullRankGaussian2(DecomposedFullRankGaussian):
     """
     Log of the eigenvalues sampled from standard normal.
     Rotation matrix sampled uniformly from Stiefel manifold.
@@ -100,7 +88,7 @@ class FullRankGaussian3(DecomposedFullRankGaussian):
         super().__init__(mu, eigenvalues)
 
 
-class FullRankGaussian4(DecomposedFullRankGaussian):
+class FullRankGaussian3(DecomposedFullRankGaussian):
     """
     First eigenvalue is 1000, remainder are 1.
     Rotation matrix sampled uniformly from Stiefel manifold.
@@ -113,7 +101,7 @@ class FullRankGaussian4(DecomposedFullRankGaussian):
         super().__init__(mu, eigenvalues)
 
 
-class FullRankGaussian5(DecomposedFullRankGaussian):
+class FullRankGaussian4(DecomposedFullRankGaussian):
     """
     First eigenvalue is 1000, second eigenvalue is 1/1000, remainder are 1.
     Rotation matrix sampled uniformly from Stiefel manifold.
@@ -128,7 +116,7 @@ class FullRankGaussian5(DecomposedFullRankGaussian):
         super().__init__(mu, eigenvalues)
 
 
-class FullRankGaussian6(DecomposedFullRankGaussian):
+class FullRankGaussian5(DecomposedFullRankGaussian):
     """
     Eigenvalues linearly space between 1/1000 and 1000.
     Rotation matrix sampled uniformly from Stiefel manifold.
