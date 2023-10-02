@@ -10,7 +10,7 @@ class Mixture(Potential):
         assert len(potentials) > 0
         assert len(potentials) == len(weights)
         assert torch.isclose(weights.sum(), torch.tensor(1.0))
-        assert torch.all(weights > 0.0)
+        assert torch.all(torch.as_tensor(weights > 0.0))
         super().__init__(potentials[0].event_shape)
         self.potentials = potentials
         self.weights = weights
