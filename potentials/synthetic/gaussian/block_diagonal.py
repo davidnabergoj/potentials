@@ -1,6 +1,5 @@
-from potentials.synthetic.gaussian import FullRankGaussian
 import torch
-
+from potentials.synthetic.gaussian.full_rank import FullRankGaussian
 from potentials.synthetic.gaussian.full_rank import generate_rotation_matrix
 import numpy as np
 
@@ -12,7 +11,7 @@ class BlockDiagonal(FullRankGaussian):
         q_seeds = [i * 1000 for i in range(n_blocks)]
         q_blocks = [generate_rotation_matrix(b, s) for b, s in zip(block_sizes, q_seeds)]
         q = torch.block_diag(*q_blocks)
-        cov = q @ eigenvalues @ q.T
+        cov = q @ torch.diag(eigenvalues).to(q) @ q.T
         super().__init__(mu, cov)
 
 
