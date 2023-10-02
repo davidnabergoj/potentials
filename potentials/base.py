@@ -8,6 +8,7 @@ class Potential(nn.Module):
     def __init__(self, event_shape: Union[torch.Size, Tuple[int, ...]]):
         super().__init__()
         self.event_shape = event_shape
+        self.n_dim = int(torch.prod(torch.as_tensor(event_shape)))
 
     @property
     def variance(self):
