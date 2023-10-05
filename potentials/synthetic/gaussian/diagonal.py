@@ -54,7 +54,6 @@ class DiagonalGaussian0(DiagonalGaussian):
 class DiagonalGaussian1(DiagonalGaussian):
     """
     Eigenvalues are linearly spaced between 1 and 10.
-    Rotation matrix sampled uniformly from Stiefel manifold.
     """
 
     def __init__(self, n_dim: int = 100):
@@ -66,7 +65,6 @@ class DiagonalGaussian1(DiagonalGaussian):
 class DiagonalGaussian2(DiagonalGaussian):
     """
     Log of the eigenvalues sampled from standard normal.
-    Rotation matrix sampled uniformly from Stiefel manifold.
     """
 
     def __init__(self, n_dim: int = 100, seed: int = 0):
@@ -79,7 +77,6 @@ class DiagonalGaussian2(DiagonalGaussian):
 class DiagonalGaussian3(DiagonalGaussian):
     """
     First eigenvalue is 1000, remainder are 1.
-    Rotation matrix sampled uniformly from Stiefel manifold.
     """
 
     def __init__(self, n_dim: int = 100):
@@ -92,7 +89,6 @@ class DiagonalGaussian3(DiagonalGaussian):
 class DiagonalGaussian4(DiagonalGaussian):
     """
     First eigenvalue is 1000, second eigenvalue is 1/1000, remainder are 1.
-    Rotation matrix sampled uniformly from Stiefel manifold.
     """
 
     def __init__(self, n_dim: int = 100):
@@ -107,7 +103,6 @@ class DiagonalGaussian4(DiagonalGaussian):
 class DiagonalGaussian5(DiagonalGaussian):
     """
     Eigenvalues linearly space between 1/1000 and 1000.
-    Rotation matrix sampled uniformly from Stiefel manifold.
     """
 
     def __init__(self, n_dim: int = 100):
