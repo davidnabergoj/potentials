@@ -14,13 +14,13 @@ def generate_rotation_matrix(n_dim: int, seed):
 
     # Multiply with a random unitary diagonal matrix to get a uniform sample from the Stiefel manifold.
     # https://stackoverflow.com/a/38430739
-    q *= np.diag(np.exp(1j * np.pi * 2 * np.random.rand(n_dim)))
-    return q
+    q *= np.diag(np.exp(np.pi * 2 * np.random.rand(n_dim)))
+    return torch.as_tensor(q)
 
 
 class FullRankGaussian(Potential):
     def __init__(self, mu: torch.Tensor, cov: torch.Tensor):
-        assert mu.shape == cov.shape[:-1]
+        assert mu.shape == cov.shape[:-1], f"{mu.shape = }, {cov.shape = }"
         event_shape = mu.shape
         super().__init__(event_shape)
         self.dist = torch.distributions.MultivariateNormal(
@@ -46,7 +46,8 @@ class DecomposedFullRankGaussian(FullRankGaussian):
         q = generate_rotation_matrix(n_dim=len(eigenvalues), seed=seed)
         self.q = q
         self.eigenvalues = eigenvalues
-        self.cov = q @ eigenvalues @ q.T
+        self.cov = q @ torch.diag(eigenvalues).to(q) @ q.T
+        # print(f'{mu.shape = } {q.shape = } {eigenvalues.shape = } {self.cov.shape = }')
         super().__init__(mu, self.cov)
 
 
