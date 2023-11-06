@@ -1,6 +1,6 @@
 import torch
 
-from potentials import DoubleGaussian
+from potentials.synthetic.gaussian_mixture import DoubleGaussian
 
 
 def test_double_gaussian():

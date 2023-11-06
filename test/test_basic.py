@@ -2,14 +2,14 @@ import pytest
 import torch
 
 from potentials.base import PotentialSimple
-from potentials.synthetic.gaussian.full_rank import IllConditionedGaussian
+from potentials.synthetic.gaussian.full_rank import FullRankGaussian0
 from potentials.synthetic.gaussian_mixture import GaussianMixture2D
 
 from potentials.synthetic.funnel import Funnel
 
 
 @pytest.mark.parametrize('device', [torch.device('cpu'), torch.device('cuda')])
-@pytest.mark.parametrize('potential_class', [Funnel, IllConditionedGaussian])
+@pytest.mark.parametrize('potential_class', [Funnel, FullRankGaussian0])
 @pytest.mark.parametrize('n_dim', [2, 10, 100, 1000])
 @pytest.mark.parametrize('batch_shape', [(2, 3), (5, 4), (7, 19, 2), (11,)])
 def test_evaluation(batch_shape, n_dim, potential_class: PotentialSimple, device):
@@ -23,7 +23,7 @@ def test_evaluation(batch_shape, n_dim, potential_class: PotentialSimple, device
 
 
 @pytest.mark.parametrize('device', [torch.device('cpu'), torch.device('cuda')])
-@pytest.mark.parametrize('potential_class', [Funnel, IllConditionedGaussian])
+@pytest.mark.parametrize('potential_class', [Funnel, FullRankGaussian0])
 @pytest.mark.parametrize('n_dim', [2, 10, 100, 1000])
 @pytest.mark.parametrize('batch_shape', [(2, 3), (5, 4), (7, 19, 2), (11,)])
 def test_sampling(batch_shape, n_dim, potential_class: PotentialSimple, device):

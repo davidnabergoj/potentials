@@ -1,5 +1,5 @@
 import torch
-from potentials.synthetic.gaussian import DiagonalGaussian
+from potentials.synthetic.gaussian.diagonal import DiagonalGaussian
 from potentials.synthetic.mixture import Mixture
 
 
