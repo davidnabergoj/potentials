@@ -42,6 +42,17 @@ def generate_rotation_matrix(n_dim: int, seed):
 def generate_cholesky_factor(eigenvalues: torch.Tensor, seed: int = 0):
     """
     Generate a random Choleksy factor L s.t. distribution of rotations of LL.T is uniform over the Stiefel manifold.
+
+    How it works: we have a diagonal matrix of eigenvalues D. We can also sample a random orthogonal matrix U.
+    This gives rise to an eigendecomposition S = U @ D @ U.T where S is a covariance matrix.
+    Now perform QR decomposition Q @ R = qr(sqrt(D) @ U.T).
+    Note that (sqrt(D) @ U.T).T @ (sqrt(D) @ U.T) = U @ D @ U.T = S.
+    Plug in Q @ R to obtain (Q @ R).T @ (Q @ R) = S.
+    Cancel the orthogonal matrices: S = (Q @ R).T @ (Q @ R) = (R.T @ Q.T) @ (Q @ R) = R.T @ Q.T @ Q @ R = R.T @ I @ R =
+        R.T @ R.
+    Therefore L = R.T is the lower Cholesky factor of covariance S.
+
+    Source: https://scicomp.stackexchange.com/a/34648.
     """
     rotation = generate_rotation_matrix(n_dim=len(eigenvalues), seed=seed).to(eigenvalues)
     _, r = torch.linalg.qr(torch.diag(torch.sqrt(eigenvalues)) @ rotation.T)
