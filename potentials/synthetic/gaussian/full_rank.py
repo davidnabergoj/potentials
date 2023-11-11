@@ -24,14 +24,25 @@ def generate_rotation_matrix(n_dim: int, seed):
 
 
 class FullRankGaussian(Potential):
-    def __init__(self, mu: torch.Tensor, cov: torch.Tensor):
-        assert mu.shape == cov.shape[:-1], f"{mu.shape = }, {cov.shape = }"
+    def __init__(self, mu: torch.Tensor, cov: torch.Tensor = None, cholesky_lower: torch.Tensor = None):
+        if cov is None and cholesky_lower is None:
+            raise ValueError("At least one of covariance and the cholesky factor must be provided")
+        if cov is not None:
+            assert mu.shape == cov.shape[:-1], f"{mu.shape = }, {cov.shape = }"
+        elif cholesky_lower is not None:
+            assert mu.shape == cholesky_lower.shape[:-1], f"{mu.shape = }, {cholesky_lower.shape = }"
         event_shape = mu.shape
         super().__init__(event_shape)
-        self.dist = torch.distributions.MultivariateNormal(
-            loc=mu.float(),
-            covariance_matrix=cov.float()
-        )
+        if cholesky_lower is not None:
+            self.dist = torch.distributions.MultivariateNormal(
+                loc=mu,
+                scale_tril=cholesky_lower
+            )
+        else:
+            self.dist = torch.distributions.MultivariateNormal(
+                loc=mu,
+                covariance_matrix=cov
+            )
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
         return -self.dist.log_prob(x)
@@ -48,12 +59,14 @@ class DecomposedFullRankGaussian(FullRankGaussian):
 
     def __init__(self, mu: torch.Tensor, eigenvalues: torch.Tensor, seed: int = 0):
         assert len(eigenvalues.shape) == 1
-        q = generate_rotation_matrix(n_dim=len(eigenvalues), seed=seed).to(mu)
-        self.q = q
+        rotation = generate_rotation_matrix(n_dim=len(eigenvalues), seed=seed).to(mu)
+        _, r = torch.linalg.qr(torch.diag(torch.sqrt(eigenvalues)) @ rotation.T)
+        r *= torch.sign(torch.diag(r))[:, None]  # For uniqueness: negate row of R with negative diagonal element
+
+        self.rotation = rotation
         self.eigenvalues = eigenvalues
-        self.cov = q @ torch.diag(eigenvalues).to(q) @ q.T
-        # print(f'{mu.shape = } {q.shape = } {eigenvalues.shape = } {self.cov.shape = }')
-        super().__init__(mu, self.cov)
+        self.cov = (rotation * eigenvalues.to(rotation)) @ rotation.T
+        super().__init__(mu, cholesky_lower=r.T)
 
 
 class FullRankGaussian0(DecomposedFullRankGaussian):
