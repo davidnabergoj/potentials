@@ -7,7 +7,7 @@ from potentials.utils import get_batch_shape
 
 
 class StandardGaussian(Potential):
-    def __init__(self, n_dim):
+    def __init__(self, n_dim: int = 100):
         super().__init__(event_shape=(n_dim,))
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:

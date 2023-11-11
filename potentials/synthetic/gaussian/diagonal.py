@@ -44,7 +44,7 @@ class DiagonalGaussian0(DiagonalGaussian):
     Eigenvalues are reciprocals of Gamma distribution samples.
     """
 
-    def __init__(self, n_dim: int, gamma_shape: float = 0.5, seed: int = 0):
+    def __init__(self, n_dim: int=100, gamma_shape: float = 0.5, seed: int = 0):
         mu = torch.zeros(n_dim)
         rng = np.random.RandomState(seed=seed)
         eigenvalues = torch.as_tensor(1 / np.sort(rng.gamma(shape=gamma_shape, scale=1.0, size=n_dim)))

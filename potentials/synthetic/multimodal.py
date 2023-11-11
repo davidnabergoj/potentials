@@ -21,7 +21,7 @@ class RandomlyPositionedGaussians(Mixture):
 
 
 class TenRandomlyPositionedGaussians(RandomlyPositionedGaussians):
-    def __init__(self, n_dim: int):
+    def __init__(self, n_dim: int = 10):
         super().__init__(n_dim, n_components=10, weights=torch.ones(10) / 10)
 
 
@@ -52,14 +52,14 @@ class GaussianChain0(Mixture):
 
 
 class DoubleGaussian0(GaussianChain0):
-    def __init__(self, n_dim: int, w: float = 0.5):
+    def __init__(self, n_dim: int = 100, w: float = 0.5):
         if w < 0 or w > 1:
             raise ValueError(f"Mode weight must be between 0 and 1, but got {w}")
         super().__init__(n_dim, torch.tensor([w, 1 - w]))
 
 
 class TripleGaussian0(GaussianChain0):
-    def __init__(self, n_dim: int, w0: float = 1 / 3, w1: float = 1 / 3):
+    def __init__(self, n_dim: int = 100, w0: float = 1 / 3, w1: float = 1 / 3):
         super().__init__(n_dim, torch.tensor([w0, w1, 1 - w0 - w1]))
 
 
@@ -94,12 +94,12 @@ class GaussianChain1(Mixture):
 
 
 class DoubleGaussian1(GaussianChain1):
-    def __init__(self, n_dim: int, w: float = 0.5):
+    def __init__(self, n_dim: int = 100, w: float = 0.5):
         if w < 0 or w > 1:
             raise ValueError(f"Mode weight must be between 0 and 1, but got {w}")
         super().__init__(n_dim, torch.tensor([w, 1 - w]))
 
 
 class TripleGaussian1(GaussianChain1):
-    def __init__(self, n_dim: int, w0: float = 1 / 3, w1: float = 1 / 3):
+    def __init__(self, n_dim: int = 100, w0: float = 1 / 3, w1: float = 1 / 3):
         super().__init__(n_dim, torch.tensor([w0, w1, 1 - w0 - w1]))

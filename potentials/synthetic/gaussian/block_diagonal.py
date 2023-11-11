@@ -5,8 +5,15 @@ import numpy as np
 
 
 class BlockDiagonal(FullRankGaussian):
-    def __init__(self, mu: torch.Tensor, eigenvalues: torch.Tensor, n_blocks: int):
+    def __init__(self, mu: torch.Tensor, eigenvalues: torch.Tensor, n_blocks: int = None):
         n_dim = len(mu)
+
+        # Set default number of blocks
+        if n_blocks is None:
+            n_blocks = max(n_dim // 3, 1)
+            if n_blocks > n_dim:
+                n_blocks = n_dim
+
         block_sizes = compute_block_sizes(n_dim, n_blocks)
         q_seeds = [i * 1000 for i in range(n_blocks)]
         q_blocks = [generate_rotation_matrix(b, s) for b, s in zip(block_sizes, q_seeds)]
@@ -30,7 +37,7 @@ class BlockDiagonal0(BlockDiagonal):
     Eigenvalues are reciprocals of Gamma distribution samples.
     """
 
-    def __init__(self, n_dim: int, gamma_shape: float = 0.5, seed: int = 0, **kwargs):
+    def __init__(self, n_dim: int = 100, gamma_shape: float = 0.5, seed: int = 0, **kwargs):
         mu = torch.zeros(n_dim)
         rng = np.random.RandomState(seed=seed)
         eigenvalues = torch.as_tensor(1 / np.sort(rng.gamma(shape=gamma_shape, scale=1.0, size=n_dim)))
@@ -99,5 +106,5 @@ class BlockDiagonal5(BlockDiagonal):
     def __init__(self, n_dim: int = 100, n_blocks: int = None):
         assert n_dim >= 2
         mu = torch.zeros(n_dim)
-        eigenvalues = torch.linspace(1 / 1000, 1000, n_dim)
+        eigenvalues = torch.linspace(1 / 100, 100, n_dim)
         super().__init__(mu, eigenvalues, n_blocks)
