@@ -6,15 +6,19 @@ from potentials.base import Potential
 
 
 def generate_rotation_matrix(n_dim: int, seed):
+    # Generates a random rotation matrix (not uniform over SO(3))
     torch.random.fork_rng()
     torch.manual_seed(seed)
-    noise = torch.randn(size=(n_dim, n_dim))
-    q, r = torch.linalg.qr(noise)
-    # q *= np.sign(np.diag(r))
 
-    # Multiply with a random unitary diagonal matrix to get a uniform sample from the Stiefel manifold.
-    # https://stackoverflow.com/a/38430739
-    q = q @ torch.diag(torch.exp(torch.pi * 2 * torch.rand(n_dim)))
+    # Apparently numpy.linalg.qr is more stable than torch.linalg.qr? Perhaps torch is not calling the best method in
+    # LAPACK?
+    q, r = np.linalg.qr(torch.randn(size=(n_dim, n_dim)))
+
+    q = torch.as_tensor(q)
+    r = torch.as_tensor(r)
+    # This line gives q determinant 1. Otherwise, it will have +1 if n_dim odd and -1 if n_dim even.
+    # q = q @ torch.diag(torch.sign(torch.diag(r)))
+    q *= torch.sign(torch.diag(r))
     return q
 
 
@@ -57,22 +61,22 @@ class FullRankGaussian0(DecomposedFullRankGaussian):
     Rotation matrix sampled uniformly from Stiefel manifold.
     """
 
-    def __init__(self, n_dim: int = 100, gamma_shape: float = 0.5, seed: int = 0):
+    def __init__(self, n_dim: int = 100, gamma_shape: float = 0.5, seed: int = 10):
         mu = torch.zeros(n_dim)
-        rng = np.random.RandomState(seed=seed)
+        rng = np.random.RandomState(seed=seed & (2 ** 32 - 1))
         eigenvalues = torch.as_tensor(1 / np.sort(rng.gamma(shape=gamma_shape, scale=1.0, size=n_dim)))
         super().__init__(mu, eigenvalues)
 
 
 class FullRankGaussian1(DecomposedFullRankGaussian):
     """
-    Eigenvalues are linearly spaced between 1 and 5.
+    Eigenvalues are linearly spaced between 1 and 10.
     Rotation matrix sampled uniformly from Stiefel manifold.
     """
 
     def __init__(self, n_dim: int = 100):
         mu = torch.zeros(n_dim)
-        eigenvalues = torch.linspace(1, 5, n_dim)
+        eigenvalues = torch.linspace(1, 10, n_dim)
         super().__init__(mu, eigenvalues)
 
 
@@ -119,12 +123,12 @@ class FullRankGaussian4(DecomposedFullRankGaussian):
 
 class FullRankGaussian5(DecomposedFullRankGaussian):
     """
-    Eigenvalues linearly space between 1/1000 and 1000.
+    Eigenvalues linearly spaced between 1/100 and 100.
     Rotation matrix sampled uniformly from Stiefel manifold.
     """
 
     def __init__(self, n_dim: int = 100):
         assert n_dim >= 2
         mu = torch.zeros(n_dim)
-        eigenvalues = torch.linspace(1 / 1000, 1000, n_dim)
+        eigenvalues = torch.linspace(1 / 100, 100, n_dim)
         super().__init__(mu, eigenvalues)
