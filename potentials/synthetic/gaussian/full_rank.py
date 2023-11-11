@@ -1,26 +1,8 @@
 from typing import Tuple, Union
-import numpy as np
 import torch
 
 from potentials.base import Potential
-from potentials.utils import sample_from_gamma
-
-
-def generate_rotation_matrix(n_dim: int, seed):
-    # Generates a random rotation matrix (not uniform over SO(3))
-    torch.random.fork_rng()
-    torch.manual_seed(seed)
-
-    # Apparently numpy.linalg.qr is more stable than torch.linalg.qr? Perhaps torch is not calling the best method in
-    # LAPACK?
-    q, r = np.linalg.qr(torch.randn(size=(n_dim, n_dim)))
-
-    q = torch.as_tensor(q)
-    r = torch.as_tensor(r)
-    # This line gives q determinant 1. Otherwise, it will have +1 if n_dim odd and -1 if n_dim even.
-    # q = q @ torch.diag(torch.sign(torch.diag(r)))
-    q *= torch.sign(torch.diag(r))
-    return q
+from potentials.utils import sample_from_gamma, generate_rotation_matrix
 
 
 class FullRankGaussian(Potential):

@@ -1,8 +1,7 @@
 import torch
 from potentials.synthetic.gaussian.full_rank import FullRankGaussian
-from potentials.synthetic.gaussian.full_rank import generate_rotation_matrix
 
-from potentials.utils import sample_from_gamma
+from potentials.utils import sample_from_gamma, generate_rotation_matrix, generate_cholesky_factor
 
 
 class BlockDiagonal(FullRankGaussian):
@@ -16,11 +15,19 @@ class BlockDiagonal(FullRankGaussian):
                 n_blocks = n_dim
 
         block_sizes = compute_block_sizes(n_dim, n_blocks)
-        q_seeds = [i * 1000 for i in range(n_blocks)]
-        q_blocks = [generate_rotation_matrix(b, s) for b, s in zip(block_sizes, q_seeds)]
-        q = torch.block_diag(*q_blocks)
-        cov = q @ torch.diag(eigenvalues).to(q) @ q.T
-        super().__init__(mu, cov)
+        small_cholesky_factors = []
+        block_start = 0
+        for i, block_size in enumerate(block_sizes):
+            block_end = block_start + block_size
+            block_cholesky = generate_cholesky_factor(
+                eigenvalues[block_start:block_end],
+                seed=(i * 1000) & (2 ** 32 - 1)
+            )
+            small_cholesky_factors.append(block_cholesky)
+            block_start = block_end
+        cholesky_factor = torch.block_diag(*small_cholesky_factors)
+        self.cov = cholesky_factor @ cholesky_factor.T
+        super().__init__(mu, cholesky_lower=cholesky_factor)
 
 
 def compute_block_sizes(n_dim, n_blocks):
