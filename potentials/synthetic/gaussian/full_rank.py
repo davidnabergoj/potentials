@@ -1,5 +1,4 @@
 from typing import Tuple, Union
-
 import numpy as np
 import torch
 
@@ -7,15 +6,16 @@ from potentials.base import Potential
 
 
 def generate_rotation_matrix(n_dim: int, seed):
-    rng = np.random.RandomState(seed=seed)
-    noise = rng.randn(n_dim, n_dim)
-    q, r = np.linalg.qr(noise)
+    torch.random.fork_rng()
+    torch.manual_seed(seed)
+    noise = torch.randn(size=(n_dim, n_dim))
+    q, r = torch.linalg.qr(noise)
     # q *= np.sign(np.diag(r))
 
     # Multiply with a random unitary diagonal matrix to get a uniform sample from the Stiefel manifold.
     # https://stackoverflow.com/a/38430739
-    q *= np.diag(np.exp(np.pi * 2 * np.random.rand(n_dim)))
-    return torch.as_tensor(q)
+    q = q @ torch.diag(torch.exp(torch.pi * 2 * torch.rand(n_dim)))
+    return q
 
 
 class FullRankGaussian(Potential):
@@ -66,13 +66,13 @@ class FullRankGaussian0(DecomposedFullRankGaussian):
 
 class FullRankGaussian1(DecomposedFullRankGaussian):
     """
-    Eigenvalues are linearly spaced between 1 and 10.
+    Eigenvalues are linearly spaced between 1 and 5.
     Rotation matrix sampled uniformly from Stiefel manifold.
     """
 
     def __init__(self, n_dim: int = 100):
         mu = torch.zeros(n_dim)
-        eigenvalues = torch.linspace(1, 10, n_dim)
+        eigenvalues = torch.linspace(1, 5, n_dim)
         super().__init__(mu, eigenvalues)
 
 
