@@ -1,5 +1,4 @@
 import pytest
-import torch
 
 from potentials.synthetic.gaussian.full_rank import (
     FullRankGaussian0,
