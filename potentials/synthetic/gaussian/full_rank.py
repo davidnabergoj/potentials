@@ -1,36 +1,30 @@
 from typing import Tuple, Union
-import numpy as np
 import torch
 
 from potentials.base import Potential
-
-
-def generate_rotation_matrix(n_dim: int, seed):
-    # Generates a random rotation matrix (not uniform over SO(3))
-    torch.random.fork_rng()
-    torch.manual_seed(seed)
-
-    # Apparently numpy.linalg.qr is more stable than torch.linalg.qr? Perhaps torch is not calling the best method in
-    # LAPACK?
-    q, r = np.linalg.qr(torch.randn(size=(n_dim, n_dim)))
-
-    q = torch.as_tensor(q)
-    r = torch.as_tensor(r)
-    # This line gives q determinant 1. Otherwise, it will have +1 if n_dim odd and -1 if n_dim even.
-    # q = q @ torch.diag(torch.sign(torch.diag(r)))
-    q *= torch.sign(torch.diag(r))
-    return q
+from potentials.utils import sample_from_gamma, generate_rotation_matrix
 
 
 class FullRankGaussian(Potential):
-    def __init__(self, mu: torch.Tensor, cov: torch.Tensor):
-        assert mu.shape == cov.shape[:-1], f"{mu.shape = }, {cov.shape = }"
+    def __init__(self, mu: torch.Tensor, cov: torch.Tensor = None, cholesky_lower: torch.Tensor = None):
+        if cov is None and cholesky_lower is None:
+            raise ValueError("At least one of covariance and the cholesky factor must be provided")
+        if cov is not None:
+            assert mu.shape == cov.shape[:-1], f"{mu.shape = }, {cov.shape = }"
+        elif cholesky_lower is not None:
+            assert mu.shape == cholesky_lower.shape[:-1], f"{mu.shape = }, {cholesky_lower.shape = }"
         event_shape = mu.shape
         super().__init__(event_shape)
-        self.dist = torch.distributions.MultivariateNormal(
-            loc=mu.float(),
-            covariance_matrix=cov.float()
-        )
+        if cholesky_lower is not None:
+            self.dist = torch.distributions.MultivariateNormal(
+                loc=mu,
+                scale_tril=cholesky_lower
+            )
+        else:
+            self.dist = torch.distributions.MultivariateNormal(
+                loc=mu,
+                covariance_matrix=cov
+            )
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
         return -self.dist.log_prob(x)
@@ -47,12 +41,14 @@ class DecomposedFullRankGaussian(FullRankGaussian):
 
     def __init__(self, mu: torch.Tensor, eigenvalues: torch.Tensor, seed: int = 0):
         assert len(eigenvalues.shape) == 1
-        q = generate_rotation_matrix(n_dim=len(eigenvalues), seed=seed)
-        self.q = q
+        rotation = generate_rotation_matrix(n_dim=len(eigenvalues), seed=seed).to(mu)
+        _, r = torch.linalg.qr(torch.diag(torch.sqrt(eigenvalues)) @ rotation.T)
+        r *= torch.sign(torch.diag(r))[:, None]  # For uniqueness: negate row of R with negative diagonal element
+
+        self.rotation = rotation
         self.eigenvalues = eigenvalues
-        self.cov = q @ torch.diag(eigenvalues).to(q) @ q.T
-        # print(f'{mu.shape = } {q.shape = } {eigenvalues.shape = } {self.cov.shape = }')
-        super().__init__(mu, self.cov)
+        self.cov = (rotation * eigenvalues.to(rotation)) @ rotation.T
+        super().__init__(mu, cholesky_lower=r.T)
 
 
 class FullRankGaussian0(DecomposedFullRankGaussian):
@@ -63,8 +59,8 @@ class FullRankGaussian0(DecomposedFullRankGaussian):
 
     def __init__(self, n_dim: int = 100, gamma_shape: float = 0.5, seed: int = 10):
         mu = torch.zeros(n_dim)
-        rng = np.random.RandomState(seed=seed & (2 ** 32 - 1))
-        eigenvalues = torch.as_tensor(1 / np.sort(rng.gamma(shape=gamma_shape, scale=1.0, size=n_dim)))
+        tmp = sample_from_gamma((n_dim,), gamma_shape, 1.0, seed=seed)
+        eigenvalues = (1 / torch.sort(tmp)[0]).to(mu)
         super().__init__(mu, eigenvalues)
 
 
@@ -88,8 +84,9 @@ class FullRankGaussian2(DecomposedFullRankGaussian):
 
     def __init__(self, n_dim: int = 100, seed: int = 0):
         mu = torch.zeros(n_dim)
-        rng = np.random.RandomState(seed=seed)
-        eigenvalues = torch.as_tensor(np.exp(rng.randn(n_dim)))
+        torch.random.fork_rng()
+        torch.manual_seed(seed)
+        eigenvalues = torch.exp(torch.randn(n_dim))
         super().__init__(mu, eigenvalues)
 
 
