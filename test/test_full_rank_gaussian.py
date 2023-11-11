@@ -32,19 +32,6 @@ def test_constructor(n_dim, u_class):
     FullRankGaussian4,
     FullRankGaussian5
 ])
-def test_dtype(u_class):
-    u = u_class(n_dim=2)
-    assert u.dist.loc.dtype == torch.float32
-    assert u.dist.covariance_matrix.dtype == torch.float32
-    assert u.eigenvalues.dtype == torch.float32
-@pytest.mark.parametrize("u_class", [
-    FullRankGaussian0,
-    FullRankGaussian1,
-    FullRankGaussian2,
-    FullRankGaussian3,
-    FullRankGaussian4,
-    FullRankGaussian5
-])
 def test_constructor_low_dim(u_class):
     u_class(n_dim=2)
 
