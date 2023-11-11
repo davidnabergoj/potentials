@@ -1,3 +1,5 @@
+# Benchmark potential functions in PyTorch
+
 This package provides potential functions to benchmark sampling and optimization algorithms.
 
 Synthetic potentials include:

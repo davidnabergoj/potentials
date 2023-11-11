@@ -3,6 +3,7 @@ import numpy as np
 import torch
 
 from potentials.base import Potential
+from potentials.utils import sample_from_gamma
 
 
 def generate_rotation_matrix(n_dim: int, seed):
@@ -47,7 +48,7 @@ class DecomposedFullRankGaussian(FullRankGaussian):
 
     def __init__(self, mu: torch.Tensor, eigenvalues: torch.Tensor, seed: int = 0):
         assert len(eigenvalues.shape) == 1
-        q = generate_rotation_matrix(n_dim=len(eigenvalues), seed=seed)
+        q = generate_rotation_matrix(n_dim=len(eigenvalues), seed=seed).to(mu)
         self.q = q
         self.eigenvalues = eigenvalues
         self.cov = q @ torch.diag(eigenvalues).to(q) @ q.T
@@ -63,8 +64,8 @@ class FullRankGaussian0(DecomposedFullRankGaussian):
 
     def __init__(self, n_dim: int = 100, gamma_shape: float = 0.5, seed: int = 10):
         mu = torch.zeros(n_dim)
-        rng = np.random.RandomState(seed=seed & (2 ** 32 - 1))
-        eigenvalues = torch.as_tensor(1 / np.sort(rng.gamma(shape=gamma_shape, scale=1.0, size=n_dim)))
+        tmp = sample_from_gamma((n_dim,), gamma_shape, 1.0, seed=seed)
+        eigenvalues = (1 / torch.sort(tmp)[0]).to(mu)
         super().__init__(mu, eigenvalues)
 
 
@@ -88,8 +89,9 @@ class FullRankGaussian2(DecomposedFullRankGaussian):
 
     def __init__(self, n_dim: int = 100, seed: int = 0):
         mu = torch.zeros(n_dim)
-        rng = np.random.RandomState(seed=seed)
-        eigenvalues = torch.as_tensor(np.exp(rng.randn(n_dim)))
+        torch.random.fork_rng()
+        torch.manual_seed(seed)
+        eigenvalues = torch.exp(torch.randn(n_dim))
         super().__init__(mu, eigenvalues)
 
 

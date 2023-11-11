@@ -1,7 +1,8 @@
 import torch
 from potentials.synthetic.gaussian.full_rank import FullRankGaussian
 from potentials.synthetic.gaussian.full_rank import generate_rotation_matrix
-import numpy as np
+
+from potentials.utils import sample_from_gamma
 
 
 class BlockDiagonal(FullRankGaussian):
@@ -39,8 +40,8 @@ class BlockDiagonal0(BlockDiagonal):
 
     def __init__(self, n_dim: int = 100, gamma_shape: float = 0.5, seed: int = 0, **kwargs):
         mu = torch.zeros(n_dim)
-        rng = np.random.RandomState(seed=seed)
-        eigenvalues = torch.as_tensor(1 / np.sort(rng.gamma(shape=gamma_shape, scale=1.0, size=n_dim)))
+        tmp = sample_from_gamma((n_dim,), gamma_shape, 1.0, seed=seed)
+        eigenvalues = (1 / torch.sort(tmp)[0]).to(mu)
         super().__init__(mu, eigenvalues, **kwargs)
 
 
@@ -64,8 +65,9 @@ class BlockDiagonal2(BlockDiagonal):
 
     def __init__(self, n_dim: int = 100, n_blocks: int = None, seed: int = 0):
         mu = torch.zeros(n_dim)
-        rng = np.random.RandomState(seed=seed)
-        eigenvalues = torch.as_tensor(np.exp(rng.randn(n_dim)))
+        torch.random.fork_rng()
+        torch.manual_seed(seed)
+        eigenvalues = torch.exp(torch.randn(size=(n_dim,)))
         super().__init__(mu, eigenvalues, n_blocks)
 
 
