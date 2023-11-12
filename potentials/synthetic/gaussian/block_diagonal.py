@@ -1,3 +1,5 @@
+import math
+
 import torch
 from potentials.synthetic.gaussian.full_rank import FullRankGaussian
 
@@ -10,7 +12,7 @@ class BlockDiagonal(FullRankGaussian):
 
         # Set default number of blocks
         if n_blocks is None:
-            n_blocks = max(n_dim // 3, 1)
+            n_blocks = max(int(math.log(n_dim)), 1)
             if n_blocks > n_dim:
                 n_blocks = n_dim
 

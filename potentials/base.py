@@ -15,14 +15,22 @@ class Potential(nn.Module):
         """
         :return: marginal variances for each dimension.
         """
-        raise NotImplementedError
+        try:
+            x = self.sample((10000,))
+            return torch.var(x, dim=0)
+        except NotImplementedError as e:
+            raise e
 
     @property
     def mean(self):
         """
         :return: mean for each dimension.
         """
-        raise NotImplementedError
+        try:
+            x = self.sample((10000,))
+            return torch.mean(x, dim=0)
+        except NotImplementedError as e:
+            raise e
 
     @property
     def second_moment(self):
