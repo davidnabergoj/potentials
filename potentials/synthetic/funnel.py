@@ -7,12 +7,13 @@ from potentials.utils import get_batch_shape, sum_except_batch
 
 
 class Funnel(PotentialSimple):
-    def __init__(self, n_dim: int = 100):
+    def __init__(self, n_dim: int = 100, scale: float = 3.0):
         # p(x1) = N(.; 0, sigma=3)
-        # p(xi) = N(.; 0, sigma=exp(x1/2))
+        # p(xi|x1) = N(.; 0, sigma=exp(x1/2))
         super().__init__(n_dim=n_dim)
         self.n_dim = n_dim
-        self.base_potential = DiagonalGaussian(mu=torch.Tensor([0.0]), sigma=torch.Tensor([3.0]))
+        self.base_potential = DiagonalGaussian(mu=torch.Tensor([0.0]), sigma=torch.Tensor([scale]))
+        self.scale = scale
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
         # p(x) = p(x1) * prod_{i=2}^100 p(xi|x1)
@@ -31,6 +32,6 @@ class Funnel(PotentialSimple):
 
     def sample(self, batch_shape: Union[torch.Size, Tuple[int]]) -> torch.Tensor:
         x = torch.zeros(*batch_shape, self.n_dim)
-        x[..., 0] = torch.randn(*batch_shape) * 3
+        x[..., 0] = torch.randn(*batch_shape) * self.scale
         x[..., 1:self.n_dim] = torch.randn(*batch_shape, self.n_dim - 1) * torch.exp(x[..., 0][..., None] / 2)
         return x

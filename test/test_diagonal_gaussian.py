@@ -1,7 +1,7 @@
 import torch
 import math
 
-from potentials.synthetic.gaussian import DiagonalGaussian
+from potentials.synthetic.gaussian.diagonal import DiagonalGaussian
 
 
 def test_basic():

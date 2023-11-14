@@ -8,20 +8,29 @@ class Potential(nn.Module):
     def __init__(self, event_shape: Union[torch.Size, Tuple[int, ...]]):
         super().__init__()
         self.event_shape = event_shape
+        self.n_dim = int(torch.prod(torch.as_tensor(event_shape)))
 
     @property
     def variance(self):
         """
         :return: marginal variances for each dimension.
         """
-        raise NotImplementedError
+        try:
+            x = self.sample((10000,))
+            return torch.var(x, dim=0)
+        except NotImplementedError as e:
+            raise e
 
     @property
     def mean(self):
         """
         :return: mean for each dimension.
         """
-        raise NotImplementedError
+        try:
+            x = self.sample((10000,))
+            return torch.mean(x, dim=0)
+        except NotImplementedError as e:
+            raise e
 
     @property
     def second_moment(self):
