@@ -7,7 +7,8 @@ class Phi4(Potential):
     """
     Two-dimensional phi^4 model.
     Events are square lattices with shape (L, L) where L is the side length.
-    We can use a lattice to compute the magnetization M of the model (M is a scalar quantity).
+    We can use a lattice to compute the magnetization M of the model.
+    M is the average of lattice elements, i.e. 1 / L^2 * sum_i { sum_j ( x[i, j] ) }
 
     The potential depends on a temperature parameter theta.
     By varying theta, we encounter a phase transition from unimodal to bimodal distribution of M at theta = 1.2.
@@ -21,6 +22,10 @@ class Phi4(Potential):
     def __init__(self, length: int = 16, temperature: float = 1.2):
         self.theta = temperature
         super().__init__(event_shape=(length, length))
+
+    @staticmethod
+    def compute_magnetization(x: torch.Tensor):
+        return torch.mean(x, dim=(-2, -1))
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
         """
