@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 from potentials.base import Potential
-from potentials.utils import get_batch_shape, unsqueeze_to_batch
+from potentials.utils import get_batch_shape, unsqueeze_to_batch, sum_except_batch
 
 
 def gaussian_potential(x: torch.Tensor, mu: torch.Tensor, sigma: torch.Tensor):
@@ -20,10 +20,9 @@ class DiagonalGaussian(Potential):
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
         batch_shape = get_batch_shape(x, self.event_shape)
-        sum_dims = list(range(len(batch_shape), len(batch_shape) + len(self.event_shape)))
         mu = unsqueeze_to_batch(self.mu, batch_shape)
         sigma = unsqueeze_to_batch(self.sigma, batch_shape)
-        return torch.sum(gaussian_potential(x, mu, sigma), dim=sum_dims)
+        return sum_except_batch(gaussian_potential(x, mu, sigma), batch_shape)
 
     def sample(self, batch_shape: Union[torch.Size, Tuple[int]]) -> torch.Tensor:
         mu = unsqueeze_to_batch(self.mu, batch_shape)
@@ -38,13 +37,17 @@ class DiagonalGaussian(Potential):
     def mean(self):
         return self.mu
 
+    @property
+    def normalization_constant(self) -> float:
+        return 1.0
+
 
 class DiagonalGaussian0(DiagonalGaussian):
     """
     Eigenvalues are reciprocals of Gamma distribution samples.
     """
 
-    def __init__(self, n_dim: int=100, gamma_shape: float = 0.5, seed: int = 0):
+    def __init__(self, n_dim: int = 100, gamma_shape: float = 0.5, seed: int = 0):
         mu = torch.zeros(n_dim)
         rng = np.random.RandomState(seed=seed)
         eigenvalues = torch.as_tensor(1 / np.sort(rng.gamma(shape=gamma_shape, scale=1.0, size=n_dim)))
