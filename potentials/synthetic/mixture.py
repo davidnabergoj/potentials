@@ -15,13 +15,26 @@ def validate_weights(weights: torch.Tensor):
 class Mixture(Potential):
     def __init__(self, potentials: List[Potential], weights: torch.Tensor):
         validate_weights(weights)
-        assert len(potentials) > 0
-        assert len(potentials) == len(weights)
+        if len(potentials) == 0:
+            raise ValueError("Expected at least 1 Potential object, but got 0")
+        if len(potentials) != len(weights):
+            raise ValueError(
+                f"Expected {len(potentials) = } to be equal to {len(weights) = }, but got different values"
+            )
+        if len(set([p.event_shape for p in potentials])) != 1:
+            raise ValueError("Expected all potentials to have the same event shape, but got different values")
         super().__init__(potentials[0].event_shape)
         self.potentials = potentials
         self.weights = weights
         self.n_components = len(self.potentials)
         self.categorical = torch.distributions.Categorical(probs=self.weights)
+
+    @property
+    def log_normalization_constants(self):
+        try:
+            return torch.log(torch.tensor([p.normalization_constant for p in self.potentials]))
+        except NotImplementedError:
+            raise ValueError("All potentials must have a specified normalization constant")
 
     @property
     def log_weights(self):
@@ -33,7 +46,7 @@ class Mixture(Potential):
         for i in range(self.n_components):
             potentials[..., i] = self.potentials[i](x)
         log_weights = unsqueeze_to_batch(self.log_weights, batch_shape)
-        return -torch.logsumexp(log_weights - potentials, dim=-1)
+        return -torch.logsumexp(log_weights - self.log_normalization_constants - potentials, dim=-1)
 
     def sample(self, batch_shape: Union[torch.Size, Tuple[int]]):
         categories = self.categorical.sample(batch_shape)
