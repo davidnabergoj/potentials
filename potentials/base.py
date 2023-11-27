@@ -11,6 +11,16 @@ class Potential(nn.Module):
         self.n_dim = int(torch.prod(torch.as_tensor(event_shape)))
 
     @property
+    def normalization_constant(self) -> float:
+        """
+        Normalization constant value for an overarching statistical distribution.
+
+        If the potential U(x) defines a statistical distribution p(x) via p(x) = exp(U(x)) / z, then z > 0 is the
+         normalization constant.
+        """
+        raise NotImplementedError
+
+    @property
     def variance(self):
         """
         :return: marginal variances for each dimension.
