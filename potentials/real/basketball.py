@@ -3,9 +3,9 @@ import torch
 from potentials.base import Potential
 
 
-def load_basketball():
+def load_basketball(file_path: str = 'data/basketball.json'):
     import json
-    with open('data/basketball.json', 'r') as f:
+    with open(file_path, 'r') as f:
         data = json.load(f)
     labels = torch.as_tensor(data['made'], dtype=torch.float64)
     k = int(data['k'][0])
@@ -14,8 +14,8 @@ def load_basketball():
 
 
 class BasketballBaseline(Potential):
-    def __init__(self):
-        self.n_players, self.labels, self.player_ids = load_basketball()
+    def __init__(self, file_path: str):
+        self.n_players, self.labels, self.player_ids = load_basketball(file_path)
         self.n_shots = len(self.labels)
         # Note: n_shots >= n_players
         event_shape = (2 + self.n_players,)  # (mu, ss, theta)
