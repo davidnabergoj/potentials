@@ -11,6 +11,10 @@ class DoubleWell(PotentialSimple):
         assert distance > 0
         self.distance = distance
 
+    @property
+    def mean(self) -> torch.Tensor:
+        return torch.zeros(self.n_dim)
+
     def compute(self, x: torch.Tensor):
         y = (x ** 2 - self.distance) ** 2
         return sum_except_batch(y, batch_shape=get_batch_shape(y, self.event_shape))
