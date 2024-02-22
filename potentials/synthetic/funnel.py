@@ -3,16 +3,16 @@ import math
 import torch
 from typing import Union, Tuple
 
-from potentials.base import PotentialSimple
+from potentials.base import StructuredPotential
 from potentials.synthetic.gaussian.diagonal import DiagonalGaussian, gaussian_potential
 from potentials.utils import get_batch_shape, sum_except_batch
 
 
-class Funnel(PotentialSimple):
+class Funnel(StructuredPotential):
     def __init__(self, n_dim: int = 100, scale: float = 3.0):
         # p(x1) = N(.; 0, sigma=3)
         # p(xi|x1) = N(.; 0, sigma=exp(x1/2))
-        super().__init__(n_dim=n_dim)
+        super().__init__(event_shape=(n_dim,))
         self.n_dim = n_dim
         self.base_potential = DiagonalGaussian(mu=torch.Tensor([0.0]), sigma=torch.Tensor([scale]))
         self.scale = scale
@@ -55,3 +55,7 @@ class Funnel(PotentialSimple):
         # > We have mu = 0, sigma = 3
         # > Therefore at t = 1, the MGF equals exp(3**2/2) = exp(9/2) = exp(4.5) \approx 90.0
         return torch.tensor([self.scale ** 2] + [math.exp(self.scale ** 2 / 2)] * (self.n_dim - 1))
+
+    @property
+    def edge_list(self):
+        return [(0, i) for i in range(1, self.n_dim)]
