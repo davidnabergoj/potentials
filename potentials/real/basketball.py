@@ -29,7 +29,7 @@ class BasketballV1(StructuredPotential):
         theta = x[..., 2:2 + self.n_players]
 
         ss = torch.exp(log_ss)
-        log_abs_det_jac = ss
+        log_abs_det_jac = log_ss
 
         # Compute the log prior
         log_prior = (
@@ -95,7 +95,7 @@ class BasketballV2(StructuredPotential):
 
         ss = torch.exp(log_ss)
         ss_beta = torch.exp(log_ss_beta)
-        log_abs_det_jac = ss + ss_beta
+        log_abs_det_jac = log_ss + log_ss_beta
 
         # Compute the log prior
         log_prior = (
