@@ -32,12 +32,12 @@ class BasketballV1(StructuredPotential):
         log_abs_det_jac = log_ss
 
         # Compute the log prior
-        log_prior = (
-                torch.distributions.Normal(0.0, 2.0).log_prob(mu)
-                + torch.distributions.HalfCauchy(2.0).log_prob(ss)
-                + torch.distributions.Independent(torch.distributions.Normal(mu[:, None], ss[:, None]), 1).log_prob(
-            theta)
-        )
+        log_prior = torch.distributions.Normal(0.0, 2.0).log_prob(mu)
+        log_prior += torch.distributions.HalfCauchy(2.0).log_prob(ss)
+        log_prior += torch.distributions.Independent(
+            torch.distributions.Normal(mu[:, None], ss[:, None]),
+            1
+        ).log_prob(theta)
 
         # Compute the log likelihood
         logits = theta[..., self.player_ids - 1]
@@ -98,17 +98,18 @@ class BasketballV2(StructuredPotential):
         ss_beta = torch.exp(log_ss_beta)
         log_abs_det_jac = log_ss + log_ss_beta
 
+
         # Compute the log prior
-        log_prior = (
-                torch.distributions.Normal(0.0, 2.0).log_prob(mu)
-                + torch.distributions.HalfCauchy(2.0).log_prob(ss)
-        )
-        for i in range(self.n_features):
-            log_prior[i] += torch.distributions.MultivariateNormal(
-                torch.zeros(len(ss_beta)), torch.diag(ss_beta) ** 2
-            ).log_prob(beta[..., i])
-        for j in range(len(mu)):
-            log_prior[j] += torch.distributions.Normal(mu[j], ss[j]).log_prob(theta[j]).sum(dim=-1)
+        log_prior = torch.distributions.Normal(0.0, 2.0).log_prob(mu)
+        log_prior += torch.distributions.HalfCauchy(2.0).log_prob(ss)
+        log_prior += torch.distributions.Independent(
+            torch.distributions.Normal(torch.zeros_like(ss_beta)[:, None], ss_beta[:, None]),
+            1
+        ).log_prob(beta)
+        log_prior += torch.distributions.Independent(
+            torch.distributions.Normal(mu[:, None], ss[:, None]),
+            1
+        ).log_prob(theta)
 
         # Compute the log likelihood
         logits = (
@@ -116,9 +117,10 @@ class BasketballV2(StructuredPotential):
                 + beta0[:, None]
                 + torch.einsum('pf,sf->ps', beta, self.features[self.player_ids - 1])
         )
-        log_likelihood = torch.zeros(size=(len(logits),))
-        for i in range(len(logits)):
-            log_likelihood[i] = torch.distributions.Bernoulli(logits=logits[i]).log_prob(self.labels).sum(dim=-1)
+        log_likelihood = torch.distributions.Independent(
+            torch.distributions.Bernoulli(logits=logits),
+            1
+        ).log_prob(self.labels)
 
         log_probability = log_likelihood + log_prior + log_abs_det_jac
 
