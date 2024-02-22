@@ -1,3 +1,5 @@
+import math
+
 import torch
 from typing import Union, Tuple
 
@@ -35,3 +37,21 @@ class Funnel(PotentialSimple):
         x[..., 0] = torch.randn(*batch_shape) * self.scale
         x[..., 1:self.n_dim] = torch.randn(*batch_shape, self.n_dim - 1) * torch.exp(x[..., 0][..., None] / 2)
         return x
+
+    @property
+    def mean(self):
+        return torch.zeros(size=(self.n_dim,))
+
+    @property
+    def variance(self):
+        # x0 has variance 3^2
+        # We write the derivation for x1, x2, ...
+        # > Law of total variance says: Var[Y] = E[Var[Y|X]] + Var[E[X|Y]]
+        # > Second term is 0, so this becomes : Var[Y] = E[Var[Y|X]]
+        # > We know Var[Y|X] = exp(X)
+        # > E[exp(X)] is related to the Moment generating function E[exp(tX)] at t = 1.
+        # > If X ~ N(mu, sigma), then the MGF E[exp(tX)] equals exp(mu*t + sigma**2 * t**2 / 2)
+        # > In our case X = x0 and e.g. Y = x1
+        # > We have mu = 0, sigma = 3
+        # > Therefore at t = 1, the MGF equals exp(3**2/2) = exp(9/2) = exp(4.5) \approx 90.0
+        return torch.tensor([self.scale ** 2] + [math.exp(self.scale ** 2 / 2)] * (self.n_dim - 1))
