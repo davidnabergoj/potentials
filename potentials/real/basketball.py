@@ -35,15 +35,16 @@ class BasketballV1(StructuredPotential):
         log_prior = (
                 torch.distributions.Normal(0.0, 2.0).log_prob(mu)
                 + torch.distributions.HalfCauchy(2.0).log_prob(ss)
+                + torch.distributions.Independent(torch.distributions.Normal(mu[:, None], ss[:, None]), 1).log_prob(
+            theta)
         )
-        for j in range(len(mu)):
-            log_prior[j] += torch.distributions.Normal(mu[j], ss[j]).log_prob(theta[j]).sum(dim=-1)
 
         # Compute the log likelihood
         logits = theta[..., self.player_ids - 1]
-        log_likelihood = torch.zeros(size=(len(logits),))
-        for i in range(len(logits)):
-            log_likelihood[i] = torch.distributions.Bernoulli(logits=logits[i]).log_prob(self.labels).sum(dim=-1)
+        log_likelihood = torch.distributions.Independent(
+            torch.distributions.Bernoulli(logits=logits),
+            1
+        ).log_prob(self.labels)
 
         log_probability = log_likelihood + log_prior + log_abs_det_jac
 
