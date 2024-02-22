@@ -1,6 +1,6 @@
 import torch
 
-from potentials.base import Potential
+from potentials.base import StructuredPotential
 
 
 def load_basketball(file_path: str = 'data/basketball.json'):
@@ -15,7 +15,7 @@ def load_basketball(file_path: str = 'data/basketball.json'):
     return k, labels, player_ids, n_features, features
 
 
-class BasketballV1(Potential):
+class BasketballV1(StructuredPotential):
     def __init__(self, file_path: str):
         self.n_players, self.labels, self.player_ids, _, _ = load_basketball(file_path)
         self.n_shots = len(self.labels)
@@ -49,8 +49,14 @@ class BasketballV1(Potential):
 
         return -log_probability
 
+    @property
+    def edge_list(self):
+        # mu affects all thetas
+        # ss affects all thetas
+        return [(0, i) for i in range(2, self.n_dim)] + [(1, i) for i in range(2, self.n_dim)]
 
-class BasketballV2(Potential):
+
+class BasketballV2(StructuredPotential):
     def __init__(self, file_path: str):
         self.n_players, self.labels, self.player_ids, self.n_features, self.features = load_basketball(file_path)
         self.n_shots = len(self.labels)
@@ -96,9 +102,25 @@ class BasketballV2(Potential):
 
         return -log_probability
 
+    @property
+    def edge_list(self):
+        # mu affects all thetas
+        mu_interactions = [(0, i) for i in range(2, 2 + self.n_players)]
+
+        # ss affects all thetas
+        ss_interactions = [(1, i) for i in range(2, 2 + self.n_players)]
+
+        # ss_beta affects all betas except beta0
+        ss_beta_interactions = [
+            (self.n_dim - 1, i) for i in range(3 + self.n_players, 3 + self.n_players + self.n_features)
+        ]
+
+        return mu_interactions + ss_interactions + ss_beta_interactions
+
 
 if __name__ == '__main__':
     # print(load_basketball())
     torch.manual_seed(0)
     target = BasketballV2('data/basketball.json')
     target(torch.randn(size=(10, *target.event_shape)))
+    print(target.edge_list)

@@ -70,3 +70,12 @@ class PotentialSimple(Potential):
         self.n_dim = n_dim
         event_shape = (n_dim,)
         super().__init__(event_shape=event_shape)
+
+
+class StructuredPotential(Potential):
+    def __init__(self, event_shape: Union[torch.Size, Tuple[int, ...]]):
+        super().__init__(event_shape)
+
+    @property
+    def edge_list(self):
+        raise NotImplementedError
