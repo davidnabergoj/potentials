@@ -1,6 +1,6 @@
 import numpy as np
 
-from potentials.base import Potential
+from potentials.base import Potential, StructuredPotential
 import torch
 from pathlib import Path
 import urllib.request
@@ -34,6 +34,11 @@ def load_german_credit():
 
 
 class GermanCredit(Potential):
+    """
+    tau ~ Gamma(0.5, 0.5)
+    beta[i] ~ N(0, 1)
+    """
+
     def __init__(self):
         self.features, self.labels = load_german_credit()
         super().__init__((26,))
@@ -67,6 +72,12 @@ class GermanCredit(Potential):
 
 
 class SparseGermanCredit(Potential):
+    """
+    tau ~ Gamma(0.5, 0.5)
+    beta[i] ~ N(0, 1)
+    lambda[i] ~ Gamma(0.5, 0.5)
+    """
+
     def __init__(self):
         self.features, self.labels = load_german_credit()
         super().__init__((51,))
