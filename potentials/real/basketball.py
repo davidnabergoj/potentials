@@ -4,6 +4,7 @@ from potentials.base import StructuredPotential
 
 
 def load_basketball(file_path: str = 'data/basketball.json'):
+    # TODO add option to reduce dataset size to induce weak likelihood effect
     import json
     with open(file_path, 'r') as f:
         data = json.load(f)
@@ -97,7 +98,6 @@ class BasketballV2(StructuredPotential):
         ss = torch.exp(log_ss)
         ss_beta = torch.exp(log_ss_beta)
         log_abs_det_jac = log_ss + log_ss_beta
-
 
         # Compute the log prior
         log_prior = torch.distributions.Normal(0.0, 2.0).log_prob(mu)
