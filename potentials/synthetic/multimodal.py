@@ -1,5 +1,8 @@
+from typing import List
+
 import torch
 
+from potentials.base import Potential
 from potentials.synthetic.gaussian.diagonal import DiagonalGaussian
 from potentials.synthetic.mixture import Mixture
 
@@ -25,6 +28,30 @@ class TenRandomlyPositionedGaussians(RandomlyPositionedGaussians):
         super().__init__(n_dim, n_components=10, weights=torch.ones(10) / 10)
 
 
+class GaussianChain(Mixture):
+    def __init__(self,
+                 n_dim: int,
+                 means,
+                 scales,
+                 weights):
+        assert len(torch.as_tensor(means).shape) == 1
+        assert len(torch.as_tensor(scales).shape) == 1
+        assert len(torch.as_tensor(weights).shape) == 1
+        assert len(means) == len(scales)
+        assert len(means) == len(weights)
+        assert n_dim >= 1
+
+        n_components = len(means)
+
+        potentials = []
+        for i in range(n_components):
+            potentials.append(DiagonalGaussian(
+                mu=torch.full(size=(n_dim,), fill_value=means[i]),
+                sigma=torch.full(size=(n_dim,), fill_value=scales[i]),
+            ))
+        super().__init__(potentials, torch.as_tensor(weights))
+
+
 class GaussianChain0(Mixture):
     """
     Multimodal distribution with unit Gaussian modes.
@@ -34,6 +61,8 @@ class GaussianChain0(Mixture):
     In other words: mu[i+1] = mu[i] + 8.
     The first mean is at the origin in all dimensions, i.e. mu[0] = 0.
     Each mode has variance 1 across all dimensions.
+
+    TODO make this class extend GaussianChain.
     """
 
     def __init__(self, n_dim: int, weights):
@@ -71,6 +100,8 @@ class GaussianChain1(Mixture):
     In other words: mu[i+1] = mu[i] + 8.
     The first mean is at the origin in all dimensions, i.e. mu[0] = 0.
     Each mode has variance 1 across all dimensions.
+
+    TODO make this class extend GaussianChain.
     """
 
     def __init__(self, n_dim: int, weights):
@@ -103,3 +134,12 @@ class DoubleGaussian1(GaussianChain1):
 class TripleGaussian1(GaussianChain1):
     def __init__(self, n_dim: int = 100, w0: float = 1 / 3, w1: float = 1 / 3):
         super().__init__(n_dim, torch.tensor([w0, w1, 1 - w0 - w1]))
+
+
+class SimpleTripleGaussian1D(GaussianChain):
+    def __init__(self):
+        n_dim = 1
+        means = [-5.0, 0.0, 5.0]
+        scales = [0.7, 0.7, 0.7]
+        weights = [1 / 3, 1 / 3, 1 / 3]
+        super().__init__(n_dim, means, scales, weights)
