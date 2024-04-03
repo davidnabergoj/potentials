@@ -58,3 +58,46 @@ def generate_cholesky_factor(eigenvalues: torch.Tensor, seed: int = 0):
     _, r = torch.linalg.qr(torch.diag(torch.sqrt(eigenvalues)) @ rotation.T)
     r *= torch.sign(torch.diag(r))[:, None]  # For uniqueness: negate row of R with negative diagonal element
     return r.T
+
+
+def plot_2d(potential_2d,
+            ax,
+            xmin: float = -5.0,
+            xmax: float = 6.0,
+            ymin: float = -5.0,
+            ymax: float = 30.0,
+            resolution: int = 500,
+            n_levels: int = 7,
+            min_level: float = None,
+            max_level: float = None):
+    """
+    Make a contour plot of a 2D potential.
+    """
+    xs = torch.linspace(xmin, xmax, resolution)
+    ys = torch.linspace(ymin, ymax, resolution)
+    xx, yy = torch.meshgrid(xs, ys, indexing="xy")
+    xx_flat, yy_flat = xx.ravel(), yy.ravel()
+    zz_flat = -potential_2d(torch.concat([xx_flat[:, None], yy_flat[:, None]], dim=1))
+    zz_flat = zz_flat.exp()
+    zz = zz_flat.view_as(xx)
+
+    levels = n_levels
+    if min_level is not None and max_level is not None:
+        levels = np.geomspace(min_level, max_level, n_levels),
+
+    ax.contour(
+        xx.numpy(),
+        yy.numpy(),
+        zz.numpy(),
+        levels=levels,
+        linewidths=0.5
+    )
+    ax.contourf(
+        xx.numpy(),
+        yy.numpy(),
+        zz.numpy(),
+        levels=levels,
+        alpha=0.1
+    )
+    ax.set_xlabel("Dim 0")
+    ax.set_ylabel("Dim 1")
