@@ -41,7 +41,7 @@ class FunnelBase(StructuredPotential):
 
     @property
     def mean(self):
-        return torch.concat([self.base_potential_1d.mean, torch.zeros(size=(self.n_dim - 1))], dim=0)
+        return torch.concat([self.base_potential_1d.mean, torch.zeros(size=(self.n_dim - 1,))], dim=0)
 
     @property
     def variance(self):
