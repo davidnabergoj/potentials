@@ -39,8 +39,12 @@ class GermanCredit(Potential):
     beta[i] ~ N(0, 1)
     """
 
-    def __init__(self):
+    def __init__(self, reduced_dataset: bool = False):
         self.features, self.labels = load_german_credit()
+        if reduced_dataset:
+            n_data = 50
+            self.features = self.features[:50]
+            self.labels = self.labels[:50]
         super().__init__((26,))
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
