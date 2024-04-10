@@ -11,8 +11,7 @@ import torch.distributions as td
 class RadonVaryingInterceptsAndSlopes(StructuredPotential):
     # https://www.tensorflow.org/probability/examples/Multilevel_Modeling_Primer
     # Using Minnesota data
-    # TODO add dataset
-    def load_data(self):
+    def load_data(self, n_counties: int):
         data_path = Path(__file__).parent / "downloaded/radon_mn.json.zip"
         if not data_path.exists():
             download_url = "https://github.com/stan-dev/posteriordb/raw/master/posterior_database/data/data/radon_mn.json.zip"
@@ -31,19 +30,21 @@ class RadonVaryingInterceptsAndSlopes(StructuredPotential):
                         log_uppm = data["log_uppm"]
                         county_idx = data["county_idx"]
 
-                        return (
-                            torch.as_tensor(floor),
-                            torch.as_tensor(log_radon),
-                            torch.as_tensor(log_uppm),
-                            torch.as_tensor(county_idx)
-                        )
+                        floor = torch.as_tensor(floor)
+                        log_radon = torch.as_tensor(log_radon)
+                        log_uranium = torch.as_tensor(log_uppm)
+                        county_idx = torch.as_tensor(county_idx)
+
+                        mask = county_idx <= n_counties
+                        return floor[mask], log_radon[mask], log_uranium[mask], county_idx[mask]
 
         return None, None
 
-    def __init__(self):
+    def __init__(self, n_counties: int = 85):
         # number of parameters: 2 + 85 + 1 + 2 + 85 = 175
-        super().__init__(event_shape=(175,))
-        self.floor, self.log_radon, self.log_uranium, self.county_idx = self.load_data()
+        super().__init__(event_shape=(5 + 2 * n_counties,))
+        self.floor, self.log_radon, self.log_uranium, self.county_idx = self.load_data(n_counties=n_counties)
+        self.n_counties = n_counties
 
     def compute(self, model_params):
         # Extract parameters
@@ -54,8 +55,8 @@ class RadonVaryingInterceptsAndSlopes(StructuredPotential):
         mu_b = model_params[..., 2]
         log_sigma_b = model_params[..., 3]
         log_sigma_y = model_params[..., 4]
-        a = model_params[..., 5:90]
-        b = model_params[..., 90:175]
+        a = model_params[..., 5:5 + self.n_counties]
+        b = model_params[..., 5 + self.n_counties:5 + 2 * self.n_counties]
 
         # Transform log scales to scales
         sigma_a = torch.exp(log_sigma_a)
@@ -100,10 +101,10 @@ class RadonVaryingInterceptsAndSlopes(StructuredPotential):
     def edge_list(self):
         # (mu_a, log_sigma_a, mu_b, log_sigma_b, log_sigma_y, a, b)
         return (
-                [(0, i) for i in range(5, 90)]
-                + [(1, i) for i in range(5, 90)]
-                + [(2, i) for i in range(90, 175)]
-                + [(3, i) for i in range(90, 175)]
+                [(0, i) for i in range(5, 5 + self.n_counties)]
+                + [(1, i) for i in range(5, 5 + self.n_counties)]
+                + [(2, i) for i in range(5 + self.n_counties, 5 + 2 * self.n_counties)]
+                + [(3, i) for i in range(5 + self.n_counties, 5 + 2 * self.n_counties)]
         )
 
 
