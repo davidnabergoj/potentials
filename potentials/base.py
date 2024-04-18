@@ -70,3 +70,31 @@ class PotentialSimple(Potential):
         self.n_dim = n_dim
         event_shape = (n_dim,)
         super().__init__(event_shape=event_shape)
+
+
+class StructuredPotential(Potential):
+    def __init__(self, event_shape: Union[torch.Size, Tuple[int, ...]]):
+        super().__init__(event_shape)
+
+    @property
+    def edge_list(self):
+        raise NotImplementedError
+
+
+class PosteriorPotential(Potential):
+    """
+    Potential U(x) = P(x) + L(x) consisting of two components:
+    * a "prior potential" P (defined by the negative log density of a prior distribution)
+    * a "likelihood potential" L (defined by the negative log density of a likelihood function)
+    """
+
+    def __init__(self,
+                 prior_potential: Potential,
+                 likelihood_potential: Potential):
+        assert prior_potential.event_shape == likelihood_potential.event_shape
+        super().__init__(event_shape=prior_potential.event_shape)
+        self.prior_potential = prior_potential
+        self.likelihood_potential = likelihood_potential
+
+    def compute(self, x: torch.Tensor) -> torch.Tensor:
+        return self.prior_potential(x) + self.likelihood_potential(x)

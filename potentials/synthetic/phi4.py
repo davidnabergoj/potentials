@@ -37,10 +37,10 @@ class Phi4(Potential):
         lattice_pow_2 = x ** 2
         lattice_pow_4 = lattice_pow_2 ** 2
 
-        lattice_row_product = x
+        lattice_row_product = torch.clone(x)
         lattice_row_product[..., :-1, :] *= x[..., 1:, :]
 
-        lattice_col_product = x
+        lattice_col_product = torch.clone(x)
         lattice_col_product[..., :, :-1] *= x[..., :, 1:]
 
         combined_lattice = (
