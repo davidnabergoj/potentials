@@ -1,5 +1,22 @@
 import torch
 import numpy as np
+from potentials.base import Potential
+
+
+class DistributionFromPotential(torch.distributions.Distribution):
+    def __init__(self, potential: Potential):
+        super().__init__(validate_args=False)
+        self.potential = potential
+
+    def log_prob(self, value: torch.Tensor) -> torch.Tensor:
+        return -self.potential(value)
+
+    def sample(self, sample_shape: torch.Size = torch.Size()) -> torch.Tensor:
+        return self.potential.sample(sample_shape)
+
+
+def as_distribution(potential: Potential) -> DistributionFromPotential:
+    return DistributionFromPotential(potential)
 
 
 def get_batch_shape(x: torch.Tensor, event_shape: torch.Size):
