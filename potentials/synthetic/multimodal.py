@@ -31,9 +31,9 @@ class TenRandomlyPositionedGaussians(RandomlyPositionedGaussians):
 class GaussianChain(Mixture):
     def __init__(self,
                  n_dim: int,
-                 means,
-                 scales,
-                 weights):
+                 means: list[float],
+                 scales: list[float],
+                 weights: list[float]):
         assert len(torch.as_tensor(means).shape) == 1
         assert len(torch.as_tensor(scales).shape) == 1
         assert len(torch.as_tensor(weights).shape) == 1
@@ -134,6 +134,14 @@ class DoubleGaussian1(GaussianChain1):
 class TripleGaussian1(GaussianChain1):
     def __init__(self, n_dim: int = 100, w0: float = 1 / 3, w1: float = 1 / 3):
         super().__init__(n_dim, torch.tensor([w0, w1, 1 - w0 - w1]))
+
+
+class TripleGaussian2(GaussianChain):
+    def __init__(self, n_dim: int):
+        means = [0., 8., 16.]
+        scales = [0.2, 0.4, 1.6]
+        weights = [4 / 7, 2 / 7, 1 / 7]
+        super().__init__(n_dim, means, scales, weights)
 
 
 class SimpleTripleGaussian1D(GaussianChain):
