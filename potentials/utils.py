@@ -5,7 +5,7 @@ from potentials.base import Potential
 
 class DistributionFromPotential(torch.distributions.Distribution):
     def __init__(self, potential: Potential):
-        super().__init__(validate_args=False)
+        super().__init__(event_shape=potential.event_shape, validate_args=False)
         self.potential = potential
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
