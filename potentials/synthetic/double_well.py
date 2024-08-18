@@ -1,3 +1,5 @@
+from typing import Union, Tuple
+
 import torch
 
 from potentials.base import PotentialSimple
@@ -5,15 +7,17 @@ from potentials.utils import sum_except_batch, get_batch_shape
 
 
 class DoubleWell(PotentialSimple):
-    def __init__(self, n_dim: int, distance: float = 4.0):
+    def __init__(self, event_shape: Union[int, Tuple[int, ...]], distance: float = 4.0):
         # Contains 2^{n_dim} modes
-        super().__init__(n_dim)
+        if isinstance(event_shape, int):
+            event_shape = (event_shape,)
+        super().__init__(event_shape)
         assert distance > 0
         self.distance = distance
 
     @property
     def mean(self) -> torch.Tensor:
-        return torch.zeros(self.n_dim)
+        return torch.zeros(size=self.event_shape)
 
     @property
     def variance(self) -> torch.Tensor:
@@ -24,7 +28,7 @@ class DoubleWell(PotentialSimple):
             marginal_var = 1.8353417214904593599217904198784863635172262491493630166971601894
         else:
             raise ValueError
-        return torch.full(size=(self.n_dim,), fill_value=marginal_var)
+        return torch.full(size=self.event_shape, fill_value=marginal_var)
 
     def compute(self, x: torch.Tensor):
         y = (x ** 2 - self.distance) ** 2

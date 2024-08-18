@@ -1,3 +1,5 @@
+from typing import Tuple, Union
+
 import torch
 from potentials.synthetic.gaussian.diagonal import DiagonalGaussian
 from potentials.synthetic.mixture import Mixture
@@ -22,11 +24,13 @@ class GaussianMixture2D(Mixture):
 
 
 class DoubleGaussian(Mixture):
-    def __init__(self, n_dim: int = 100):
-        self.loc0 = torch.full(size=(n_dim,), fill_value=-10.0)
-        self.scale0 = torch.full(size=(n_dim,), fill_value=1.0)
-        self.loc1 = torch.full(size=(n_dim,), fill_value=10.0)
-        self.scale1 = torch.full(size=(n_dim,), fill_value=1.0)
+    def __init__(self, event_shape: Union[int, Tuple[int, ...]] = (100,)):
+        if isinstance(event_shape, int):
+            event_shape = (event_shape,)
+        self.loc0 = torch.full(size=event_shape, fill_value=-10.0)
+        self.scale0 = torch.full(size=event_shape, fill_value=1.0)
+        self.loc1 = torch.full(size=event_shape, fill_value=10.0)
+        self.scale1 = torch.full(size=event_shape, fill_value=1.0)
         potentials = [
             DiagonalGaussian(mu=self.loc0, sigma=self.scale0),
             DiagonalGaussian(mu=self.loc1, sigma=self.scale1)

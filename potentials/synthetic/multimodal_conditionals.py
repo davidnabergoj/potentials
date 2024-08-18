@@ -1,3 +1,5 @@
+from typing import Union, Tuple
+
 from potentials.synthetic.funnel import FunnelBase
 from potentials.synthetic.multimodal import SimpleTripleGaussian1D
 
@@ -8,5 +10,5 @@ class ChoppedFunnel(FunnelBase):
     xi ~ N(0, exp(x0) / 2); std(xi) = exp(x0 / 2)
     """
 
-    def __init__(self, n_dim: int):
-        super().__init__(n_dim, SimpleTripleGaussian1D())
+    def __init__(self, event_shape: Union[Tuple[int, ...], int]):
+        super().__init__(event_shape, SimpleTripleGaussian1D())

@@ -14,7 +14,11 @@ class FunnelBase(StructuredPotential):
     p(xi|x1) = N(.; 0, sigma=exp(x1/2))
     """
 
-    def __init__(self, n_dim: int, base_potential_1d: Potential):
+    def __init__(self, event_shape: Union[int, Tuple[int, ...]], base_potential_1d: Potential):
+        if isinstance(event_shape, int):
+            event_shape = (event_shape,)
+        assert len(event_shape) == 1
+        n_dim = event_shape[0]
         assert n_dim >= 2
         super().__init__(event_shape=(n_dim,))
         assert base_potential_1d.event_shape == (1,)
