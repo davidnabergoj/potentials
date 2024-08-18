@@ -78,7 +78,7 @@ def test_evaluation(batch_shape, n_dim, potential_class: PotentialSimple, device
     if potential_class in __unstable_target_list and n_dim > 100:
         pytest.skip("Not testing inherently numerically unstable target in high dimensions")
     torch.manual_seed(0)
-    potential = potential_class(n_dim=n_dim).to(device)
+    potential = potential_class(n_dim).to(device)
     x = torch.randn(size=(*batch_shape, *potential.event_shape)).to(device)
     u = potential(x)
     assert u.shape == batch_shape
@@ -96,7 +96,7 @@ def test_sampling(batch_shape, n_dim, potential_class: PotentialSimple, device):
     if potential_class in __unstable_target_list and n_dim > 100:
         pytest.skip("Not testing inherently numerically unstable target in high dimensions")
     torch.manual_seed(0)
-    potential = potential_class(n_dim=n_dim).to(device)
+    potential = potential_class(n_dim).to(device)
     x = potential.sample(batch_shape)
     assert x.shape == (*batch_shape, *potential.event_shape)
     assert torch.all(~torch.isnan(x))
