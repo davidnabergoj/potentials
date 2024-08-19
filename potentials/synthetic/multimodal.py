@@ -68,23 +68,20 @@ class GaussianChain0(Mixture):
     In other words: mu[i+1] = mu[i] + 8.
     The first mean is at the origin in all dimensions, i.e. mu[0] = 0.
     Each mode has variance 1 across all dimensions.
-
-    TODO make this class extend GaussianChain.
     """
 
     def __init__(self, event_shape: Union[int, Tuple[int, ...]], weights):
         if isinstance(event_shape, int):
             event_shape = (event_shape,)
         n_components = len(weights)
-        scales = torch.ones(n_components)
-        tmp = torch.zeros(n_components)
-        for i in range(1, n_components):
-            tmp[i] = 4 * scales[i - 1] + 4 * scales[i]
-        first_dim_offsets = torch.cumsum(tmp, dim=0)
-        locations = torch.zeros(size=(n_components, *event_shape))
-
-        # Change first dim locations of all but the first component
-        locations[1:, 0] = first_dim_offsets[1:]
+        if any(w < 0 for w in weights):
+            raise ValueError(f"Expected weights to be non-negative, but found {min(weights)} in weights.")
+        if sum(weights) != 1:
+            raise ValueError(f"Expected weights to sum to 1, but got {sum(weights)}")
+        locations = 8 * torch.arange(n_components)[[None] * len(event_shape)].T.repeat(1, *event_shape)
+        mask = torch.ones(size=event_shape).bool()
+        mask[[0] * len(event_shape)] = False
+        locations[:, mask] = 0
         potentials = [DiagonalGaussian(loc, torch.ones(size=event_shape)) for loc in locations]
         super().__init__(potentials, torch.as_tensor(weights))
 
@@ -109,8 +106,6 @@ class GaussianChain1(Mixture):
     In other words: mu[i+1] = mu[i] + 8.
     The first mean is at the origin in all dimensions, i.e. mu[0] = 0.
     Each mode has variance 1 across all dimensions.
-
-    TODO make this class extend GaussianChain.
     """
 
     def __init__(self, event_shape: Union[Tuple[int, ...], int], weights):
@@ -143,6 +138,14 @@ class TripleGaussian2(GaussianChain):
         means = [0., 8., 16.]
         scales = [0.2, 0.4, 1.6]
         weights = [4 / 7, 2 / 7, 1 / 7]
+        super().__init__(event_shape, means, scales, weights)
+
+
+class TripleGaussian3(GaussianChain):
+    def __init__(self, event_shape: Union[Tuple[int, ...], int]):
+        means = [-3., 0., 3.]
+        scales = [0.1, 0.1, 0.1]
+        weights = [1 / 3, 1 / 3, 1 / 3]
         super().__init__(event_shape, means, scales, weights)
 
 
