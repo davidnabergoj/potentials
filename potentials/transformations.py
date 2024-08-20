@@ -2,9 +2,8 @@ import math
 from typing import Union, Tuple
 
 import torch
-from PIL.ImageOps import scale
 
-from potentials.utils import sum_except_batch, get_batch_shape
+from potentials.utils import sum_except_batch
 
 
 def exponential_transform(x: torch.Tensor,
@@ -106,8 +105,8 @@ def scaled_sigmoid_transform(x: torch.Tensor,
 
 def bound_parameter(x: torch.Tensor,
                     batch_shape: Union[Tuple[int, ...], torch.Size],
-                    low: Union[float, torch.float],
-                    high: Union[float, torch.float]) -> Tuple[torch.Tensor, torch.Tensor]:
+                    low: Union[float],
+                    high: Union[float]) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Bound an input parameter to a desired range.
 
