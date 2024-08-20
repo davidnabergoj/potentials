@@ -1,10 +1,13 @@
 import numpy as np
+from scipy.stats import expon
 
 from potentials.base import Potential, StructuredPotential
 import torch
 from pathlib import Path
 import urllib.request
 import zipfile
+
+from potentials.transformations import exponential_transform
 
 
 def load_german_credit():
@@ -50,9 +53,10 @@ class GermanCredit(Potential):
     def compute(self, x: torch.Tensor) -> torch.Tensor:
         assert x.shape[-1] == 26
         batch_shape = x.shape[:-1]
-        unnormalized_tau = x[..., 0]
-        tau = torch.exp(unnormalized_tau)
+
         beta = x[..., 1:]
+        unnormalized_tau = x[..., 0]
+        tau, log_det_tau = exponential_transform(unnormalized_tau, batch_shape)
 
         # Compute the log prior
         log_prior = torch.add(
@@ -72,7 +76,7 @@ class GermanCredit(Potential):
 
         log_probability = log_likelihood + log_prior
 
-        return -log_probability
+        return -(log_probability + log_det_tau)
 
 
 class SparseGermanCredit(Potential):
@@ -89,11 +93,14 @@ class SparseGermanCredit(Potential):
     def compute(self, x: torch.Tensor) -> torch.Tensor:
         assert x.shape[-1] == 51
         batch_shape = x.shape[:-1]
-        unnormalized_tau = x[..., 0]
-        tau = torch.exp(unnormalized_tau)
+
         beta = x[..., 1:26]
+        unnormalized_tau = x[..., 0]
         unconstrained_lambda = x[..., 26:]
-        lmbd = torch.exp(unconstrained_lambda)
+
+        tau, log_det_tau = exponential_transform(unnormalized_tau, batch_shape)
+        lmbd, log_det_lmbd = exponential_transform(unconstrained_lambda, batch_shape)
+        log_det = log_det_tau + log_det_lmbd
 
         # Compute the log prior
         log_prior = torch.add(
@@ -116,4 +123,4 @@ class SparseGermanCredit(Potential):
 
         log_probability = log_likelihood + log_prior
 
-        return -log_probability
+        return -(log_probability + log_det)
