@@ -1,6 +1,7 @@
 import torch
 
 from potentials.base import StructuredPotential
+from potentials.transformations import bound_parameter
 
 
 def load_basketball(file_path: str = 'data/basketball.json'):
@@ -25,12 +26,14 @@ class BasketballV1(StructuredPotential):
         super().__init__(event_shape)
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
+        # (mu, unconstrained_ss, theta)
+        batch_shape = x.shape[:-1]
+
         mu = x[..., 0]
-        log_ss = x[..., 1]
+        unconstrained_ss = x[..., 1]
         theta = x[..., 2:2 + self.n_players]
 
-        ss = torch.exp(log_ss)
-        log_abs_det_jac = log_ss
+        ss, log_det = bound_parameter(unconstrained_ss, batch_shape, low=0.0, high=torch.inf)
 
         # Compute the log prior
         log_prior = torch.distributions.Normal(0.0, 2.0).log_prob(mu)
@@ -47,7 +50,7 @@ class BasketballV1(StructuredPotential):
             1
         ).log_prob(self.labels)
 
-        log_probability = log_likelihood + log_prior + log_abs_det_jac
+        log_probability = log_likelihood + log_prior + log_det
 
         return -log_probability
 
@@ -88,16 +91,17 @@ class BasketballV2(StructuredPotential):
         super().__init__(event_shape)
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
+        batch_shape = x.shape[:-1]
         mu = x[..., 0]
-        log_ss = x[..., 1]
+        unconstrained_ss = x[..., 1]
         theta = x[..., 2:2 + self.n_players]
         beta0 = x[..., 2 + self.n_players]
         beta = x[..., 2 + self.n_players + 1:-1]
-        log_ss_beta = x[..., -1]
+        unconstrained_ss_beta = x[..., -1]
 
-        ss = torch.exp(log_ss)
-        ss_beta = torch.exp(log_ss_beta)
-        log_abs_det_jac = log_ss + log_ss_beta
+        ss, log_det_ss = bound_parameter(unconstrained_ss, batch_shape, low=0.0, high=torch.inf)
+        ss_beta, log_det_ss_beta = bound_parameter(unconstrained_ss_beta, batch_shape, low=0.0, high=torch.inf)
+        log_det = log_det_ss + log_det_ss_beta
 
         # Compute the log prior
         log_prior = torch.distributions.Normal(0.0, 2.0).log_prob(mu)
@@ -122,9 +126,9 @@ class BasketballV2(StructuredPotential):
             1
         ).log_prob(self.labels)
 
-        log_probability = log_likelihood + log_prior + log_abs_det_jac
+        log_prob = log_likelihood + log_prior + log_det
 
-        return -log_probability
+        return -log_prob
 
     @property
     def edge_list(self):

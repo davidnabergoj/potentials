@@ -1,7 +1,7 @@
 import torch
 import torch.distributions as td
 from potentials.base import Potential
-from potentials.transformations import exponential_transform
+from potentials.transformations import bound_parameter
 from potentials.utils import sum_except_batch
 
 
@@ -24,7 +24,7 @@ class EightSchools(Potential):
         log_tau = x[..., 1]
         theta_prime = x[..., 2:]
 
-        tau, log_det_tau = exponential_transform(log_tau, batch_shape)
+        tau, log_det_tau = bound_parameter(log_tau, batch_shape, low=0.0, high=torch.inf)
         log_det = log_det_tau
 
         theta = mu[..., None] + tau[..., None] * theta_prime

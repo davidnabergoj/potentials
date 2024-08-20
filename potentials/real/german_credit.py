@@ -1,13 +1,12 @@
 import numpy as np
-from scipy.stats import expon
 
-from potentials.base import Potential, StructuredPotential
+from potentials.base import Potential
 import torch
 from pathlib import Path
 import urllib.request
 import zipfile
 
-from potentials.transformations import exponential_transform
+from potentials.transformations import bound_parameter
 
 
 def load_german_credit():
@@ -56,7 +55,7 @@ class GermanCredit(Potential):
 
         beta = x[..., 1:]
         unnormalized_tau = x[..., 0]
-        tau, log_det_tau = exponential_transform(unnormalized_tau, batch_shape)
+        tau, log_det_tau = bound_parameter(unnormalized_tau, batch_shape, low=0.0, high=torch.inf)
 
         # Compute the log prior
         log_prior = torch.add(
@@ -98,8 +97,8 @@ class SparseGermanCredit(Potential):
         unnormalized_tau = x[..., 0]
         unconstrained_lambda = x[..., 26:]
 
-        tau, log_det_tau = exponential_transform(unnormalized_tau, batch_shape)
-        lmbd, log_det_lmbd = exponential_transform(unconstrained_lambda, batch_shape)
+        tau, log_det_tau = bound_parameter(unnormalized_tau, batch_shape, low=0.0, high=torch.inf)
+        lmbd, log_det_lmbd = bound_parameter(unconstrained_lambda, batch_shape, low=0.0, high=torch.inf)
         log_det = log_det_tau + log_det_lmbd
 
         # Compute the log prior

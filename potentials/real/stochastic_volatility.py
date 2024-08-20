@@ -1,6 +1,5 @@
 import torch
 import torch.distributions as td
-from PIL.ImageOps import scale
 
 from potentials.base import Potential
 from potentials.transformations import bound_parameter

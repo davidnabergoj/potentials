@@ -7,7 +7,7 @@ from potentials.base import StructuredPotential
 import torch
 import torch.distributions as td
 
-from potentials.transformations import exponential_transform
+from potentials.transformations import bound_parameter
 
 
 # https://www.tensorflow.org/probability/examples/Multilevel_Modeling_Primer
@@ -59,8 +59,8 @@ class RadonVaryingSlopes(StructuredPotential):
         b = model_params[..., 3 + self.n_counties]
 
         # Transform log scales to scales
-        sigma_a, log_det_sigma_a = exponential_transform(log_sigma_a, batch_shape)
-        sigma_y, log_det_sigma_y = exponential_transform(log_sigma_y, batch_shape)
+        sigma_a, log_det_sigma_a = bound_parameter(log_sigma_a, batch_shape, low=0.0, high=torch.inf)
+        sigma_y, log_det_sigma_y = bound_parameter(log_sigma_y, batch_shape, low=0.0, high=torch.inf)
         log_det = log_det_sigma_a + log_det_sigma_y
 
         # Compute probabilities
@@ -112,8 +112,8 @@ class RadonVaryingIntercepts(StructuredPotential):
         b = model_params[..., 4:4 + self.n_counties]
 
         # Transform log scales to scales
-        sigma_b, log_det_sigma_b = exponential_transform(log_sigma_b, batch_shape)
-        sigma_y, log_det_sigma_y = exponential_transform(log_sigma_y, batch_shape)
+        sigma_b, log_det_sigma_b = bound_parameter(log_sigma_b, batch_shape, low=0.0, high=torch.inf)
+        sigma_y, log_det_sigma_y = bound_parameter(log_sigma_y, batch_shape, low=0.0, high=torch.inf)
         log_det = log_det_sigma_b + log_det_sigma_y
 
         # Compute probabilities
@@ -167,9 +167,9 @@ class RadonVaryingInterceptsAndSlopes(StructuredPotential):
         b = model_params[..., 5 + self.n_counties:5 + 2 * self.n_counties]
 
         # Transform log scales to scales
-        sigma_a, log_det_sigma_a = exponential_transform(log_sigma_a, batch_shape)
-        sigma_b, log_det_sigma_b = exponential_transform(log_sigma_b, batch_shape)
-        sigma_y, log_det_sigma_y = exponential_transform(log_sigma_y, batch_shape)
+        sigma_a, log_det_sigma_a = bound_parameter(log_sigma_a, batch_shape, low=0.0, high=torch.inf)
+        sigma_b, log_det_sigma_b = bound_parameter(log_sigma_b, batch_shape, low=0.0, high=torch.inf)
+        sigma_y, log_det_sigma_y = bound_parameter(log_sigma_y, batch_shape, low=0.0, high=torch.inf)
         log_det = log_det_sigma_a + log_det_sigma_b + log_det_sigma_y
 
         # Compute probabilities
