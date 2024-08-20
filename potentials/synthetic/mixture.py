@@ -59,7 +59,7 @@ class Mixture(Potential):
         log_weights = unsqueeze_to_batch(self.log_weights, batch_shape)
         return -torch.logsumexp(log_weights.to(x) - self.log_normalization_constants.to(x) - potentials, dim=-1)
 
-    def sample(self, batch_shape: Union[torch.Size, Tuple[int]]):
+    def sample(self, batch_shape: Union[torch.Size, Tuple[int, ...]]):
         categories = self.categorical.sample(batch_shape)
         outputs = torch.zeros(*batch_shape, *self.event_shape)
         for i, potential in enumerate(self.potentials):
