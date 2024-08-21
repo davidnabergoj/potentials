@@ -56,8 +56,25 @@ class EightSchools(Potential):
         log_prob = log_likelihood + log_prior + log_det
         return - log_prob
 
+    @property
+    def mean(self):
+        return torch.tensor([
+            -9.7772e-03, 4.4717e+00, -1.1302e-02, -1.0023e-01, 3.2246e-02,
+            1.6387e-01, 6.1710e-02, -4.1238e-04, 2.4907e-02, 1.5544e-01
+        ])
+
+    @property
+    def second_moment(self):
+        return torch.tensor([
+            1.1949e+00, 4.2651e+01, 3.8306e-01, 4.1782e-01, 6.7065e-01,
+            4.7906e-01, 5.7163e-01, 5.3950e-01, 6.4698e-01, 7.1619e-01
+        ])
+
+
 if __name__ == '__main__':
     u = EightSchools()
+    print(u.mean.shape)
+    print(u.second_moment.shape)
 
     torch.manual_seed(0)
     print(u(torch.randn(size=(5, *u.event_shape))))

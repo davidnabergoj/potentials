@@ -32,3 +32,17 @@ class BiochemicalOxygenDemand(Potential):
         errors = (predictions - targets_reshaped) ** 2
         assert errors.shape == (*batch_shape, self.n_observations)
         return 2 * math.pi * self.var_b + 0.5 * torch.sum(errors, dim=-1)
+
+    @property
+    def mean(self):
+        return torch.tensor([2.1695e-01, 9.1293e+01])
+
+    @property
+    def second_moment(self):
+        return torch.tensor([6.3547e-01, 1.9868e+04])
+
+
+if __name__ == '__main__':
+    u = BiochemicalOxygenDemand()
+    print(u.mean.shape)
+    print(u.second_moment.shape)
