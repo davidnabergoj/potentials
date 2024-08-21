@@ -1,23 +1,38 @@
+import json
+from pathlib import Path
+
 import torch
 import torch.distributions as td
 from potentials.base import Potential
 from potentials.utils import sum_except_batch
+import urllib.request
 
 
 class SyntheticItemResponseTheory(Potential):
     """
 
+    Reference: https://github.com/stan-dev/example-models/blob/master/misc/irt/irt.data.json
     Reference: https://proceedings.mlr.press/v130/hoffman21a/hoffman21a.pdf.
     """
 
     def __init__(self):
         super().__init__(event_shape=(501,))
-        self.n_students = 100  # J
-        self.n_questions = 400  # K
-        self.n_responses = 30105
-        self.responses: torch.Tensor = ...  # TODO fetch responses tensor
-        self.student_index: torch.Tensor = ...  # TODO fetch responses index, this has shape `(self.n_responses,)`
-        self.response_index: torch.Tensor = ...  # TODO fetch responses index, this has shape `(self.n_responses,)`
+
+        download_url = "https://raw.githubusercontent.com/stan-dev/example-models/master/misc/irt/irt.data.json"
+        data_dir = Path(__file__).parent / 'downloaded'
+        data_file = data_dir / "irt.data.json"
+        if not data_file.exists():
+            print(f'Downloading {download_url}')
+            urllib.request.urlretrieve(download_url, data_file)
+        with open(data_file, "r") as f:
+            data = json.load(f)
+
+        self.n_students = data['K']  # 100, K
+        self.n_questions = data['J']  # 400, J
+        self.n_responses = data['N']  # 30105, N
+        self.responses: torch.Tensor = torch.tensor(data['y'], dtype=torch.float)
+        self.student_index: torch.Tensor = torch.tensor(data['kk'], dtype=torch.long) - 1
+        self.response_index: torch.Tensor = torch.tensor(data['jj'], dtype=torch.long) - 1
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
         batch_shape = x.shape[:-1]
@@ -39,3 +54,15 @@ class SyntheticItemResponseTheory(Potential):
         log_prob = log_likelihood + log_prior
 
         return -log_prob
+
+
+if __name__ == '__main__':
+    u = SyntheticItemResponseTheory()
+
+    torch.manual_seed(0)
+    out = u(torch.randn(size=(5, *u.event_shape)))
+    print(out)
+
+    torch.manual_seed(0)
+    out = u(torch.randn(size=(2, 3, *u.event_shape)))
+    print(out)
