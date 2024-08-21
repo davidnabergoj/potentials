@@ -1,3 +1,7 @@
+import json
+import urllib.request
+from pathlib import Path
+
 import torch
 import torch.distributions as td
 from potentials.base import Potential
@@ -8,14 +12,24 @@ from potentials.utils import sum_except_batch
 class EightSchools(Potential):
     """
 
+    Reference: https://raw.githubusercontent.com/stan-dev/example-models/master/misc/eight_schools/eight_schools.data.json
     Reference: https://www.tensorflow.org/probability/examples/Eight_Schools
     """
 
     def __init__(self):
         super().__init__(event_shape=(10,))
-        self.measurements = ...
-        self.scales = ...  # (8,)
-        self.index = ...  # (n_measurements,) with values between 0 and 7 inclusive
+
+        download_url = "https://raw.githubusercontent.com/stan-dev/example-models/master/misc/eight_schools/eight_schools.data.json"
+        data_dir = Path(__file__).parent / 'downloaded'
+        data_file = data_dir / "eight_schools.data.json"
+        if not data_file.exists():
+            print(f'Downloading {download_url}')
+            urllib.request.urlretrieve(download_url, data_file)
+        with open(data_file, "r") as f:
+            data = json.load(f)
+
+        self.measurements = torch.tensor(data['y'], dtype=torch.float)
+        self.scales = torch.tensor(data['sigma'], dtype=torch.float)  # (8,)
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
         # (mu, log_tau, theta_prime)
@@ -35,9 +49,18 @@ class EightSchools(Potential):
         log_prior = log_prob_mu + log_prob_tau + log_prob_theta_prime
 
         log_likelihood = td.Independent(
-            td.Normal(loc=theta[self.index], scale=self.sigma[self.index]),
-            reinterpreted_batch_ndims=11
+            td.Normal(loc=theta, scale=self.scales),
+            reinterpreted_batch_ndims=1
         ).log_prob(self.measurements)
 
         log_prob = log_likelihood + log_prior + log_det
         return - log_prob
+
+if __name__ == '__main__':
+    u = EightSchools()
+
+    torch.manual_seed(0)
+    print(u(torch.randn(size=(5, *u.event_shape))))
+
+    torch.manual_seed(0)
+    print(u(torch.randn(size=(2, 3, *u.event_shape))))
