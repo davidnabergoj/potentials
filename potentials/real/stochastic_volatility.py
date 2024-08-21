@@ -1,3 +1,6 @@
+from pathlib import Path
+import csv
+
 import torch
 import torch.distributions as td
 
@@ -9,21 +12,31 @@ from potentials.utils import sum_except_batch
 class StochasticVolatilityModel(Potential):
     """
 
+    Data retrieved: August 21, 2024
+    Data url: https://query1.finance.yahoo.com/v7/finance/download/%5EGSPC?period1=1277424000&period2=1593043200&interval=1d&events=history
+    Reference: https://github.com/tensorflow/probability/blob/a4852982c5f40a24b20be58b0e32daa52de2464e/spinoffs/inference_gym/inference_gym/internal/datasets/sp500_closing_prices.py
     Reference: https://proceedings.mlr.press/v130/hoffman21a/hoffman21a.pdf
     """
 
     def __init__(self):
-        super().__init__(event_shape=(3003,))
-        self.measurements: torch.Tensor = ...  # (3000,)
+        data_path = Path(__file__).parent / 'data' / '^GSPC.csv'
+        with open(data_path, 'r') as f:
+            reader = csv.reader(f, delimiter=',')
+            next(reader)  # skip header
+            closing_prices = torch.tensor([float(row[4]) for row in reader], dtype=torch.float)
+
+        self.measurements: torch.Tensor = closing_prices
+        self.n_measurements = len(self.measurements)
+        super().__init__(event_shape=(self.n_measurements + 3,))
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
         # (z, unconstrained_sigma, unconstrained_mu, unconstrained_phi)
         batch_shape = x.shape[:-1]
 
-        z = x[..., :3000]
-        unconstrained_sigma = x[..., 3001]
-        unconstrained_mu = x[..., 3002]
-        unconstrained_phi = x[..., 3003]
+        z = x[..., :self.n_measurements]
+        unconstrained_sigma = x[..., self.n_measurements]
+        unconstrained_mu = x[..., self.n_measurements + 1]
+        unconstrained_phi = x[..., self.n_measurements + 2]
 
         phi_transformed, log_det_phi_transformed = bound_parameter(unconstrained_phi, batch_shape, low=0.0, high=1.0)
         sigma, log_det_sigma = bound_parameter(unconstrained_sigma, batch_shape, low=0.0, high=torch.inf)
@@ -38,9 +51,9 @@ class StochasticVolatilityModel(Potential):
 
         phi = phi_transformed * 2 - 1
 
-        h = torch.zeros(size=(batch_shape, 3000), device=x.device, dtype=x.dtype)
+        h = torch.zeros(size=(*batch_shape, self.n_measurements), device=x.device, dtype=x.dtype)
         h[..., 0] = mu + sigma * z[..., 0] - torch.sqrt(1 - phi ** 2)
-        for i in range(1, 3000):
+        for i in range(1, self.n_measurements):
             h[..., i] = mu + sigma * z[..., i] + phi * (h[..., i - 1] - mu)
 
         y_scale = torch.exp(h / 2)
@@ -52,3 +65,13 @@ class StochasticVolatilityModel(Potential):
 
         log_prob = log_likelihood + log_prior + log_det
         return -log_prob
+
+
+if __name__ == '__main__':
+    u = StochasticVolatilityModel()
+
+    torch.manual_seed(0)
+    print(u(torch.randn(size=(5, *u.event_shape))))
+
+    torch.manual_seed(0)
+    print(u(torch.randn(size=(2, 3, *u.event_shape))))
