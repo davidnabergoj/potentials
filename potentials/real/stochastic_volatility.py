@@ -1,3 +1,4 @@
+import pathlib
 from pathlib import Path
 import csv
 
@@ -66,9 +67,25 @@ class StochasticVolatilityModel(Potential):
         log_prob = log_likelihood + log_prior + log_det
         return -log_prob
 
+    @property
+    def mean(self):
+        return torch.load(
+            pathlib.Path(__file__).absolute().parent.parent / 'true_moments' / 'stochastic_volatility_moments.pt'
+        )[0]
+
+    @property
+    def second_moment(self):
+        return torch.load(
+            pathlib.Path(__file__).absolute().parent.parent / 'true_moments' / 'stochastic_volatility_moments.pt'
+        )[1]
+
 
 if __name__ == '__main__':
     u = StochasticVolatilityModel()
+    print(u.mean.shape)
+    print(u.second_moment.shape)
+    print(u.mean.isfinite().all())
+    print(u.second_moment.isfinite().all())
 
     torch.manual_seed(0)
     print(u(torch.randn(size=(5, *u.event_shape))))

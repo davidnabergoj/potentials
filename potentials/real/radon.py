@@ -1,3 +1,4 @@
+import pathlib
 from pathlib import Path
 from urllib.request import urlretrieve
 import zipfile
@@ -283,9 +284,26 @@ class RadonVaryingInterceptsAndSlopes(StructuredPotential):
                 + [(3, i) for i in range(5 + self.n_counties, 5 + 2 * self.n_counties)]
         )
 
+    @property
+    def mean(self):
+        return torch.load(
+            pathlib.Path(__file__).absolute().parent.parent / 'true_moments' / 'radon_intercepts_slopes_moments.pt'
+        )[0]
+
+    @property
+    def second_moment(self):
+        return torch.load(
+            pathlib.Path(__file__).absolute().parent.parent / 'true_moments' / 'radon_intercepts_slopes_moments.pt'
+        )[1]
+
 
 if __name__ == '__main__':
     for target in [RadonVaryingSlopes(), RadonVaryingIntercepts(), RadonVaryingInterceptsAndSlopes()]:
+        print(target.mean.shape)
+        print(target.second_moment.shape)
+        print(target.mean.isfinite().all())
+        print(target.second_moment.isfinite().all())
+
         torch.manual_seed(0)
         x = torch.randn(size=(5, *target.event_shape))
         print(target(x))

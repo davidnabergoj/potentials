@@ -1,3 +1,5 @@
+import pathlib
+
 import torch
 
 from potentials.base import Potential
@@ -66,6 +68,10 @@ class Phi4(Potential):
                 [0.3410, 0.5133, 0.6021, 0.6483, 0.6793, 0.7110, 0.7572, 0.8357],
                 [0.5332, 0.6979, 0.7579, 0.7845, 0.7983, 0.8131, 0.8373, 0.8851]
             ])
+        elif self.length == 64:
+            return torch.load(
+                pathlib.Path(__file__).absolute().parent.parent / 'true_moments' / 'phi4_big_moments.pt'
+            )[0]
         return super().mean
 
     @property
@@ -81,6 +87,10 @@ class Phi4(Potential):
                 [0.4603, 0.6225, 0.7009, 0.7411, 0.7702, 0.7979, 0.8460, 0.9301],
                 [0.5652, 0.7586, 0.8323, 0.8653, 0.8829, 0.9005, 0.9311, 0.9905]
             ])
+        elif self.length == 64:
+            return torch.load(
+                pathlib.Path(__file__).absolute().parent.parent / 'true_moments' / 'phi4_big_moments.pt'
+            )[1]
         return super().second_moment
 
 
@@ -88,3 +98,11 @@ if __name__ == '__main__':
     u = Phi4(length=8)
     print(u.mean.shape)
     print(u.second_moment.shape)
+
+    u = Phi4(length=64)
+    print(u.mean.shape)
+    print(u.second_moment.shape)
+    print(u.mean.shape)
+    print(u.second_moment.shape)
+    print(u.mean.isfinite().all())
+    print(u.second_moment.isfinite().all())
