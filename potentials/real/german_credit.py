@@ -45,8 +45,8 @@ class GermanCredit(Potential):
         self.features, self.labels = load_german_credit()
         if reduced_dataset:
             n_data = 50
-            self.features = self.features[:50]
-            self.labels = self.labels[:50]
+            self.features = self.features[:n_data]
+            self.labels = self.labels[:n_data]
         super().__init__((26,))
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
@@ -56,6 +56,7 @@ class GermanCredit(Potential):
         beta = x[..., 1:]
         unnormalized_tau = x[..., 0]
         tau, log_det_tau = bound_parameter(unnormalized_tau, batch_shape, low=0.0, high=torch.inf)
+        log_det = log_det_tau
 
         # Compute the log prior
         log_prior = torch.add(
@@ -73,7 +74,7 @@ class GermanCredit(Potential):
         )
         log_likelihood = torch.distributions.Bernoulli(probs=probs).log_prob(self.labels).sum(dim=-1)
 
-        log_probability = log_likelihood + log_prior
+        log_probability = log_likelihood + log_prior + log_det
 
         return -(log_probability + log_det_tau)
 
@@ -141,9 +142,9 @@ class SparseGermanCredit(Potential):
         )
         log_likelihood = torch.distributions.Bernoulli(probs=probs).log_prob(self.labels).sum(dim=-1)
 
-        log_probability = log_likelihood + log_prior
+        log_probability = log_likelihood + log_prior + log_det
 
-        return -(log_probability + log_det)
+        return -log_probability
 
     @property
     def mean(self):
