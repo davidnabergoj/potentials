@@ -21,14 +21,21 @@ class Phi4(Potential):
     When theta = 1.6, the distribution of M as two non-overlapping modes.
     """
 
-    def __init__(self, length: int = 16, temperature: float = 1.2):
+    def __init__(self, length: int = 16, temperature: float = 1.2, add_channel_dimension: bool = False):
         self.theta = temperature
         self.length = length
-        super().__init__(event_shape=(length, length))
+        self.add_channel_dimension = add_channel_dimension
 
-    @staticmethod
-    def compute_magnetization(x: torch.Tensor):
-        return torch.mean(x, dim=(-2, -1))
+        if self.add_channel_dimension:
+            super().__init__(event_shape=(1, length, length))
+        else:
+            super().__init__(event_shape=(length, length))
+
+    def compute_magnetization(self, x: torch.Tensor):
+        if self.add_channel_dimension:
+            return torch.mean(x, dim=(-3, -2, -1))
+        else:
+            return torch.mean(x, dim=(-2, -1))
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -53,12 +60,15 @@ class Phi4(Potential):
                 - lattice_col_product
         )
 
-        return torch.sum(combined_lattice, dim=(-2, -1))
+        if self.add_channel_dimension:
+            return torch.sum(combined_lattice, dim=(-3, -2, -1))
+        else:
+            return torch.sum(combined_lattice, dim=(-2, -1))
 
     @property
     def mean(self):
         if self.length == 8:
-            return torch.tensor([
+            output = torch.tensor([
                 [0.0451, 0.0809, 0.1125, 0.1455, 0.1865, 0.2465, 0.3406, 0.5312],
                 [0.0780, 0.1432, 0.2022, 0.2567, 0.3174, 0.3975, 0.5131, 0.6978],
                 [0.1115, 0.2002, 0.2733, 0.3409, 0.4086, 0.4889, 0.5993, 0.7571],
@@ -68,16 +78,22 @@ class Phi4(Potential):
                 [0.3410, 0.5133, 0.6021, 0.6483, 0.6793, 0.7110, 0.7572, 0.8357],
                 [0.5332, 0.6979, 0.7579, 0.7845, 0.7983, 0.8131, 0.8373, 0.8851]
             ])
+            if self.add_channel_dimension:
+                output = output[None]
         elif self.length == 64:
-            return torch.load(
+            output = torch.load(
                 pathlib.Path(__file__).absolute().parent.parent / 'true_moments' / 'phi4_big_moments.pt'
             )[0]
-        return super().mean
+            if self.add_channel_dimension:
+                output = output[None]
+        else:
+            output = super().mean
+        return output
 
     @property
     def second_moment(self):
         if self.length == 8:
-            return torch.tensor([
+            output = torch.tensor([
                 [0.3442, 0.3947, 0.4044, 0.4099, 0.4169, 0.4315, 0.4611, 0.5639],
                 [0.3920, 0.4758, 0.5050, 0.5221, 0.5378, 0.5671, 0.6229, 0.7594],
                 [0.4054, 0.5048, 0.5444, 0.5734, 0.5972, 0.6331, 0.6992, 0.8307],
@@ -87,11 +103,17 @@ class Phi4(Potential):
                 [0.4603, 0.6225, 0.7009, 0.7411, 0.7702, 0.7979, 0.8460, 0.9301],
                 [0.5652, 0.7586, 0.8323, 0.8653, 0.8829, 0.9005, 0.9311, 0.9905]
             ])
+            if self.add_channel_dimension:
+                output = output[None]
         elif self.length == 64:
-            return torch.load(
+            output = torch.load(
                 pathlib.Path(__file__).absolute().parent.parent / 'true_moments' / 'phi4_big_moments.pt'
             )[1]
-        return super().second_moment
+            if self.add_channel_dimension:
+                output = output[None]
+        else:
+            output = super().second_moment
+        return output
 
 
 if __name__ == '__main__':
