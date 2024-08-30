@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Union, Tuple
 
 import torch
@@ -25,6 +26,9 @@ class Rosenbrock(Potential):
     @property
     def mean(self):
         if tuple(self.event_shape) == (100,) and self.scale == 10.0:
+            path = Path(__file__).parent.parent / 'true_moments' / f'rosenbrock_moments.pt'
+            if path.exists():
+                return torch.load(path)[0]
             return torch.tensor([
                 0.9984, 1.4949, 1.0021, 1.5041, 1.0027, 1.5069, 0.9996, 1.4978, 1.0032,
                 1.5112, 0.9950, 1.4879, 0.9995, 1.5014, 1.0018, 1.5072, 0.9987, 1.4968,
@@ -44,6 +48,9 @@ class Rosenbrock(Potential):
     @property
     def second_moment(self):
         if tuple(self.event_shape) == (100,) and self.scale == 10.0:
+            path = Path(__file__).parent.parent / 'true_moments' / f'rosenbrock_moments.pt'
+            if path.exists():
+                return torch.load(path)[1]
             return torch.tensor([
                 1.4946, 4.7206, 1.5038, 4.7998, 1.5067, 4.8607, 1.4983, 4.7665, 1.5112,
                 4.8907, 1.4885, 4.7134, 1.5016, 4.8135, 1.5072, 4.8636, 1.4962, 4.7733,

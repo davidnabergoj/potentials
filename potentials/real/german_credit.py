@@ -80,6 +80,9 @@ class GermanCredit(Potential):
 
     @property
     def mean(self):
+        path = Path(__file__).parent.parent / 'true_moments' / f'german_credit_moments.pt'
+        if path.exists():
+            return torch.load(path)[0]
         return torch.tensor([
             -5.5876e+01, -1.1380e-01, 1.0360e-01, -1.6707e-01, -4.4986e-02,
             -2.6688e-02, 1.2024e-01, 8.7453e-03, -9.3806e-02, 1.4022e-02,
@@ -91,6 +94,9 @@ class GermanCredit(Potential):
 
     @property
     def second_moment(self):
+        path = Path(__file__).parent.parent / 'true_moments' / f'german_credit_moments.pt'
+        if path.exists():
+            return torch.load(path)[1]
         return torch.tensor([
             4.2846e+03, 8.5638e-01, 7.9636e-01, 7.2609e-01, 9.1535e-01, 7.0697e-01,
             9.6090e-01, 1.0219e+00, 8.6421e-01, 7.3238e-01, 8.2984e-01, 7.9772e-01,
@@ -148,6 +154,9 @@ class SparseGermanCredit(Potential):
 
     @property
     def mean(self):
+        path = Path(__file__).parent.parent / 'true_moments' / f'sparse_german_credit_moments.pt'
+        if path.exists():
+            return torch.load(path)[0]
         return torch.tensor([
             -2.7315, -0.9769, 0.6704, -0.7520, 0.4620, -0.6109, -0.1834, -0.4439,
             -0.1633, 0.4071, -0.4058, -0.4201, -0.0725, 0.0516, 0.0628, -0.4283,
@@ -160,6 +169,9 @@ class SparseGermanCredit(Potential):
 
     @property
     def second_moment(self):
+        path = Path(__file__).parent.parent / 'true_moments' / f'sparse_german_credit_moments.pt'
+        if path.exists():
+            return torch.load(path)[1]
         return torch.tensor([
             8.4133, 1.7535, 0.9989, 1.2258, 1.0043, 0.9493, 0.8957, 0.8257, 0.7243,
             0.7776, 0.7038, 1.1839, 0.5382, 0.5155, 0.8522, 0.7376, 0.9852, 0.6100,
