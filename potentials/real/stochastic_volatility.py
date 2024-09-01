@@ -88,7 +88,7 @@ if __name__ == '__main__':
     print(u.second_moment.isfinite().all())
 
     torch.manual_seed(0)
-    print(u(torch.randn(size=(5, *u.event_shape))))
+    print(u(1.5 + torch.randn(size=(5, *u.event_shape)) / 10))
 
     torch.manual_seed(0)
     print(u(torch.randn(size=(2, 3, *u.event_shape))))
