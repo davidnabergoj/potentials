@@ -140,12 +140,12 @@ def bound_parameter(x: torch.Tensor,
         raise ValueError(f'Higher bound {high} cannot be negative infinity')
 
     if low == -torch.inf and high < torch.inf:
-        z, log_det_0 = negative_exponential_transform(x, batch_shape)
+        z, log_det_0 = negative_softplus_transform(x, batch_shape)
         y, log_det_1 = affine_transform(z, batch_shape, scale=(high - low), shift=low)
         log_det = log_det_0 + log_det_1
         return y, log_det
     elif low > -torch.inf and high == torch.inf:
-        z, log_det_0 = exponential_transform(x, batch_shape)
+        z, log_det_0 = softplus_transform(x, batch_shape)
         y, log_det_1 = affine_transform(z, batch_shape, scale=1.0, shift=low)
         log_det = log_det_0 + log_det_1
         return y, log_det
