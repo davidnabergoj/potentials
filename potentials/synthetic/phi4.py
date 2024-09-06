@@ -21,10 +21,15 @@ class Phi4(Potential):
     When theta = 1.6, the distribution of M as two non-overlapping modes.
     """
 
-    def __init__(self, length: int = 16, temperature: float = 1.2, add_channel_dimension: bool = False):
+    def __init__(self,
+                 length: int = 16,
+                 temperature: float = 1.2,
+                 add_channel_dimension: bool = False,
+                 normalize: bool = True):
         self.theta = temperature
         self.length = length
         self.add_channel_dimension = add_channel_dimension
+        self.normalize = normalize
 
         if self.add_channel_dimension:
             super().__init__(event_shape=(1, length, length))
@@ -60,10 +65,11 @@ class Phi4(Potential):
                 - lattice_col_product
         )
 
+        normalization = 1.0 if not self.normalize else self.length ** 2
         if self.add_channel_dimension:
-            return torch.sum(combined_lattice, dim=(-3, -2, -1))
+            return torch.sum(combined_lattice, dim=(-3, -2, -1)) / normalization
         else:
-            return torch.sum(combined_lattice, dim=(-2, -1))
+            return torch.sum(combined_lattice, dim=(-2, -1)) / normalization
 
     @property
     def mean(self):
