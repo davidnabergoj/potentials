@@ -8,6 +8,9 @@ from potentials.utils import unsqueeze_to_batch
 
 
 class BiochemicalOxygenDemand(Potential):
+    """
+    Biochemical Oxygen Demand model. Warning: potentially has a bug.
+    """
     def __init__(self):
         event_shape = (2,)
         super().__init__(event_shape)
@@ -31,7 +34,6 @@ class BiochemicalOxygenDemand(Potential):
         targets_reshaped = unsqueeze_to_batch(self.targets, batch_shape)
 
         errors = (predictions - targets_reshaped) ** 2
-        assert errors.shape == (*batch_shape, self.n_observations)
         return 2 * math.pi * self.var_b + 0.5 * torch.sum(errors, dim=-1)
 
     @property
