@@ -156,3 +156,16 @@ class SimpleTripleGaussian1D(GaussianChain):
         scales = [0.7, 0.7, 0.7]
         weights = [1 / 3, 1 / 3, 1 / 3]
         super().__init__(event_shape, means, scales, weights)
+
+
+class BoundedGaussianChain(GaussianChain):
+    def __init__(self,
+                 event_shape: Union[Tuple[int, ...], int],
+                 low: float = -3.0,
+                 high: float = 3.0,
+                 n_components: int = 10,
+                 weight_scale: float = 0.0):
+        means = list(torch.linspace(low, high, n_components))
+        scales = [0.1] * n_components
+        weights = list(torch.softmax(torch.randn(size=(n_components,)) * weight_scale, dim=0))
+        super().__init__(event_shape, means, scales, weights)
