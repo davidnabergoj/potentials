@@ -1,0 +1,7 @@
+from potentials.real.basketball import BasketballV1, BasketballV2
+from potentials.real.biochemical_oxygen_demand import BiochemicalOxygenDemand
+from potentials.real.eight_schools import EightSchools
+from potentials.real.german_credit import GermanCredit, SparseGermanCredit
+from potentials.real.item_response import SyntheticItemResponseTheory
+from potentials.real.radon import RadonVaryingSlopes, RadonVaryingIntercepts, RadonVaryingInterceptsAndSlopes
+from potentials.real.stochastic_volatility import StochasticVolatilityModel

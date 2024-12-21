@@ -15,16 +15,21 @@ class FullRankGaussian(Potential):
             assert mu.shape == cholesky_lower.shape[:-1], f"{mu.shape = }, {cholesky_lower.shape = }"
         event_shape = mu.shape
         super().__init__(event_shape)
+
+        self.register_buffer('loc', mu)
         if cholesky_lower is not None:
-            self.dist = torch.distributions.MultivariateNormal(
-                loc=mu,
-                scale_tril=cholesky_lower
-            )
+            self.tril_parametrization = True
+            self.register_buffer('scale_tril', cholesky_lower)
         else:
-            self.dist = torch.distributions.MultivariateNormal(
-                loc=mu,
-                covariance_matrix=cov
-            )
+            self.tril_parametrization = False
+            self.register_buffer('covariance_matrix', cov)
+
+    @property
+    def dist(self):
+        if self.tril_parametrization:
+            return torch.distributions.MultivariateNormal(loc=self.loc, scale_tril=self.scale_tril)
+        else:
+            return torch.distributions.MultivariateNormal(loc=self.loc, covariance_matrix=self.covariance_matrix)
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
         return -self.dist.log_prob(x)

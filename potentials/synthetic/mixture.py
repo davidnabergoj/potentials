@@ -30,6 +30,17 @@ class Mixture(Potential):
         self.categorical = torch.distributions.Categorical(probs=self.weights)
 
     @property
+    def mean(self):
+        means = torch.stack([p.mean for p in self.potentials])
+        return torch.sum(self.weights[:, None] * means, dim=0)
+
+    @property
+    def variance(self):
+        variances = torch.stack([p.variance for p in self.potentials])
+        means = torch.stack([p.mean for p in self.potentials])
+        return torch.sum(self.weights[:, None] * (variances + means ** 2), dim=0) - self.mean ** 2
+
+    @property
     def log_normalization_constants(self):
         try:
             return torch.log(torch.tensor([p.normalization_constant for p in self.potentials]))
@@ -48,7 +59,7 @@ class Mixture(Potential):
         log_weights = unsqueeze_to_batch(self.log_weights, batch_shape)
         return -torch.logsumexp(log_weights.to(x) - self.log_normalization_constants.to(x) - potentials, dim=-1)
 
-    def sample(self, batch_shape: Union[torch.Size, Tuple[int]]):
+    def sample(self, batch_shape: Union[torch.Size, Tuple[int, ...]]):
         categories = self.categorical.sample(batch_shape)
         outputs = torch.zeros(*batch_shape, *self.event_shape)
         for i, potential in enumerate(self.potentials):

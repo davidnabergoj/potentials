@@ -1,4 +1,5 @@
 import math
+from pathlib import Path
 
 from potentials.base import Potential
 import torch
@@ -7,6 +8,9 @@ from potentials.utils import unsqueeze_to_batch
 
 
 class BiochemicalOxygenDemand(Potential):
+    """
+    Biochemical Oxygen Demand model. Warning: potentially has a bug.
+    """
     def __init__(self):
         event_shape = (2,)
         super().__init__(event_shape)
@@ -30,5 +34,24 @@ class BiochemicalOxygenDemand(Potential):
         targets_reshaped = unsqueeze_to_batch(self.targets, batch_shape)
 
         errors = (predictions - targets_reshaped) ** 2
-        assert errors.shape == (*batch_shape, self.n_observations)
         return 2 * math.pi * self.var_b + 0.5 * torch.sum(errors, dim=-1)
+
+    @property
+    def mean(self):
+        path = Path(__file__).parent.parent / 'true_moments' / f'biochemical_oxygen_demand_moments.pt'
+        if path.exists():
+            return torch.load(path)[0]
+        return torch.tensor([2.1695e-01, 9.1293e+01])
+
+    @property
+    def second_moment(self):
+        path = Path(__file__).parent.parent / 'true_moments' / f'biochemical_oxygen_demand_moments.pt'
+        if path.exists():
+            return torch.load(path)[1]
+        return torch.tensor([6.3547e-01, 1.9868e+04])
+
+
+if __name__ == '__main__':
+    u = BiochemicalOxygenDemand()
+    print(u.mean.shape)
+    print(u.second_moment.shape)

@@ -1,3 +1,5 @@
+import pathlib
+
 import torch
 
 from potentials.base import Potential
@@ -19,13 +21,26 @@ class Phi4(Potential):
     When theta = 1.6, the distribution of M as two non-overlapping modes.
     """
 
-    def __init__(self, length: int = 16, temperature: float = 1.2):
+    def __init__(self,
+                 length: int = 16,
+                 temperature: float = 1.2,
+                 add_channel_dimension: bool = False,
+                 normalize: bool = True):
         self.theta = temperature
-        super().__init__(event_shape=(length, length))
+        self.length = length
+        self.add_channel_dimension = add_channel_dimension
+        self.normalize = normalize
 
-    @staticmethod
-    def compute_magnetization(x: torch.Tensor):
-        return torch.mean(x, dim=(-2, -1))
+        if self.add_channel_dimension:
+            super().__init__(event_shape=(1, length, length))
+        else:
+            super().__init__(event_shape=(length, length))
+
+    def compute_magnetization(self, x: torch.Tensor):
+        if self.add_channel_dimension:
+            return torch.mean(x, dim=(-3, -2, -1))
+        else:
+            return torch.mean(x, dim=(-2, -1))
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -50,4 +65,44 @@ class Phi4(Potential):
                 - lattice_col_product
         )
 
-        return torch.sum(combined_lattice, dim=(-2, -1))
+        normalization = 1.0 if not self.normalize else self.length ** 2
+        if self.add_channel_dimension:
+            return torch.sum(combined_lattice, dim=(-3, -2, -1)) / normalization
+        else:
+            return torch.sum(combined_lattice, dim=(-2, -1)) / normalization
+
+    @property
+    def mean(self):
+        path = pathlib.Path(__file__).absolute().parent.parent / 'true_moments' / f'phi4_{self.length}_moments.pt'
+        if path.exists():
+            output = torch.load(path)[0, 0]
+            if self.add_channel_dimension:
+                output = output[None]
+        else:
+            output = super().mean
+        return output
+
+    @property
+    def second_moment(self):
+        path = pathlib.Path(__file__).absolute().parent.parent / 'true_moments' / f'phi4_{self.length}_moments.pt'
+        if path.exists():
+            output = torch.load(path)[1, 0]
+            if self.add_channel_dimension:
+                output = output[None]
+        else:
+            output = super().second_moment
+        return output
+
+
+if __name__ == '__main__':
+    u = Phi4(length=8)
+    print(u.mean.shape)
+    print(u.second_moment.shape)
+
+    u = Phi4(length=64)
+    print(u.mean.shape)
+    print(u.second_moment.shape)
+    print(u.mean.shape)
+    print(u.second_moment.shape)
+    print(u.mean.isfinite().all())
+    print(u.second_moment.isfinite().all())

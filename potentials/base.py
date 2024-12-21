@@ -5,8 +5,10 @@ import torch.nn as nn
 
 
 class Potential(nn.Module):
-    def __init__(self, event_shape: Union[torch.Size, Tuple[int, ...]]):
+    def __init__(self, event_shape: Union[torch.Size, Tuple[int, ...], int]):
         super().__init__()
+        if isinstance(event_shape, int):
+            event_shape = (event_shape,)
         self.event_shape = event_shape
         self.n_dim = int(torch.prod(torch.as_tensor(event_shape)))
 
@@ -66,7 +68,9 @@ class PotentialSimple(Potential):
     Potential with a length one event shape.
     """
 
-    def __init__(self, n_dim: int):
+    def __init__(self, event_shape: Union[Tuple[int, ...], int]):
+        assert len(event_shape) == 1
+        n_dim = event_shape[0]
         self.n_dim = n_dim
         event_shape = (n_dim,)
         super().__init__(event_shape=event_shape)

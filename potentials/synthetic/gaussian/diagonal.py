@@ -47,10 +47,15 @@ class DiagonalGaussian0(DiagonalGaussian):
     Eigenvalues are reciprocals of Gamma distribution samples.
     """
 
-    def __init__(self, n_dim: int = 100, gamma_shape: float = 0.5, seed: int = 0):
-        mu = torch.zeros(n_dim)
+    def __init__(self,
+                 event_shape: Union[Tuple[int, ...], int] = (100,),
+                 gamma_shape: float = 0.5,
+                 seed: int = 0):
+        if isinstance(event_shape, int):
+            event_shape = (event_shape,)
+        mu = torch.zeros(event_shape)
         rng = np.random.RandomState(seed=seed)
-        eigenvalues = torch.as_tensor(1 / np.sort(rng.gamma(shape=gamma_shape, scale=1.0, size=n_dim)))
+        eigenvalues = torch.as_tensor(1 / np.sort(rng.gamma(shape=gamma_shape, scale=1.0, size=event_shape)))
         super().__init__(mu, eigenvalues)
 
 
@@ -59,9 +64,12 @@ class DiagonalGaussian1(DiagonalGaussian):
     Eigenvalues are linearly spaced between 1 and 10.
     """
 
-    def __init__(self, n_dim: int = 100):
-        mu = torch.zeros(n_dim)
-        eigenvalues = torch.linspace(1, 10, n_dim)
+    def __init__(self, event_shape: Union[Tuple[int, ...], int] = (100,)):
+        if isinstance(event_shape, int):
+            event_shape = (event_shape,)
+        mu = torch.zeros(event_shape)
+        n_dim = int(torch.prod(torch.as_tensor(event_shape)))
+        eigenvalues = torch.linspace(1, 10, n_dim).view_as(mu)
         super().__init__(mu, eigenvalues)
 
 
@@ -70,10 +78,13 @@ class DiagonalGaussian2(DiagonalGaussian):
     Log of the eigenvalues sampled from standard normal.
     """
 
-    def __init__(self, n_dim: int = 100, seed: int = 0):
-        mu = torch.zeros(n_dim)
+    def __init__(self, event_shape: Union[Tuple[int, ...], int] = (100,), seed: int = 0):
+        if isinstance(event_shape, int):
+            event_shape = (event_shape,)
+        mu = torch.zeros(event_shape)
+        n_dim = int(torch.prod(torch.as_tensor(event_shape)))
         rng = np.random.RandomState(seed=seed)
-        eigenvalues = torch.as_tensor(np.exp(rng.randn(n_dim)))
+        eigenvalues = torch.as_tensor(np.exp(rng.randn(n_dim))).view_as(mu)
         super().__init__(mu, eigenvalues)
 
 
@@ -82,9 +93,12 @@ class DiagonalGaussian3(DiagonalGaussian):
     First eigenvalue is 1000, remainder are 1.
     """
 
-    def __init__(self, n_dim: int = 100):
-        mu = torch.zeros(n_dim)
-        eigenvalues = torch.ones(n_dim)
+    def __init__(self, event_shape: Union[Tuple[int, ...], int] = (100,)):
+        if isinstance(event_shape, int):
+            event_shape = (event_shape,)
+        mu = torch.zeros(event_shape)
+        n_dim = int(torch.prod(torch.as_tensor(event_shape)))
+        eigenvalues = torch.ones(n_dim).view_as(mu)
         eigenvalues[0] = 1000
         super().__init__(mu, eigenvalues)
 
@@ -94,12 +108,16 @@ class DiagonalGaussian4(DiagonalGaussian):
     First eigenvalue is 1000, second eigenvalue is 1/1000, remainder are 1.
     """
 
-    def __init__(self, n_dim: int = 100):
+    def __init__(self, event_shape: Union[Tuple[int, ...], int] = (100,)):
+        if isinstance(event_shape, int):
+            event_shape = (event_shape,)
+        n_dim = int(torch.prod(torch.as_tensor(event_shape)))
         assert n_dim >= 2
-        mu = torch.zeros(n_dim)
+        mu = torch.zeros(event_shape)
         eigenvalues = torch.ones(n_dim)
         eigenvalues[0] = 1000
         eigenvalues[1] = 1 / 1000
+        eigenvalues = eigenvalues.view_as(mu)
         super().__init__(mu, eigenvalues)
 
 
@@ -108,8 +126,11 @@ class DiagonalGaussian5(DiagonalGaussian):
     Eigenvalues linearly space between 1/1000 and 1000.
     """
 
-    def __init__(self, n_dim: int = 100):
+    def __init__(self, event_shape: Union[Tuple[int, ...], int] = (100,)):
+        if isinstance(event_shape, int):
+            event_shape = (event_shape,)
+        n_dim = int(torch.prod(torch.as_tensor(event_shape)))
         assert n_dim >= 2
-        mu = torch.zeros(n_dim)
-        eigenvalues = torch.linspace(1 / 1000, 1000, n_dim)
+        mu = torch.zeros(event_shape)
+        eigenvalues = torch.linspace(1 / 1000, 1000, n_dim).view_as(mu)
         super().__init__(mu, eigenvalues)
