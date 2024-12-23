@@ -1,4 +1,5 @@
 from setuptools import setup, find_packages
+from distutils.util import convert_path
 import pathlib
 import sys
 
