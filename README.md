@@ -53,7 +53,13 @@ x_new = potential.sample(batch_shape)  # x_new.shape == (50, 100)
 ## Installing
 
 This package requires Python version 3.7 or greater.
-Clone the package and install dependencies as follows:
+
+Install the package directly from Github:
+```
+pip install git+https://github.com/davidnabergoj/potentials.git
+```
+
+To alternatively configure the package for local development, clone the repository and install dependencies as follows:
 
 ```
 git clone git@github.com:davidnabergoj/potentials.git

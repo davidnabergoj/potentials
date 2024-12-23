@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "potentials"
+dynamic = ["version"]
+authors = [
+    { name = "David Nabergoj", email = "david.nabergoj@fri.uni-lj.si" },
+]
+description = "Potential functions for sampling and optimization"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "torch",
+    "numpy",
+    "scipy"
+]
+
+[project.urls]
+Homepage = "https://github.com/davidnabergoj/potentials"
+Issues = "https://github.com/davidnabergoj/potentials/issues"
