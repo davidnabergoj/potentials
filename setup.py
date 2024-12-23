@@ -1,11 +1,12 @@
 from setuptools import setup, find_packages
 import pathlib
+import sys
 
 root = pathlib.Path(__file__).parent.resolve()
 sys.path.append(root.as_posix())
 
 main_ns = {}
-ver_path = convert_path('nfmc/_version.py')
+ver_path = convert_path('potentials/_version.py')
 with open(ver_path) as ver_file:
     exec(ver_file.read(), main_ns)
 
