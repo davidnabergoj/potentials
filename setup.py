@@ -1,13 +1,21 @@
 from setuptools import setup, find_packages
+from distutils.util import convert_path
 import pathlib
+import sys
 
-here = pathlib.Path(__file__).parent.resolve()
+root = pathlib.Path(__file__).parent.resolve()
+sys.path.append(root.as_posix())
 
-long_description = (here / "README.md").read_text(encoding="utf-8")
+main_ns = {}
+ver_path = convert_path('potentials/_version.py')
+with open(ver_path) as ver_file:
+    exec(ver_file.read(), main_ns)
+
+long_description = (root / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="potentials",
-    version="0.1",
+    version=main_ns['__version__'],
     description="Potential functions for sampling and optimization",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -26,6 +34,9 @@ setup(
         "Programming Language :: Python :: 3 :: Only",
     ],
     keywords=[
+        "benchmark",
+        "probability-distribution",
+        "potential",
         "python",
         "pytorch",
         "sampling",

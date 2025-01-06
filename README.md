@@ -53,7 +53,13 @@ x_new = potential.sample(batch_shape)  # x_new.shape == (50, 100)
 ## Installing
 
 This package requires Python version 3.7 or greater.
-Clone the package and install dependencies as follows:
+
+Install the package directly from Github:
+```
+pip install git+https://github.com/davidnabergoj/potentials.git
+```
+
+To alternatively configure the package for local development, clone the repository and install dependencies as follows:
 
 ```
 git clone git@github.com:davidnabergoj/potentials.git
@@ -61,8 +67,18 @@ pip install -r requirements.txt
 ```
 
 ## Citation
-If you use this code in your work, we kindly ask that you cite the accompanying paper:
 
+If you use this code in your work, kindly consider citing the accompanying paper:
+> [Nabergoj and Štrumbelj: Empirical evaluation of normalizing flows in Markov Chain Monte Carlo, 2024. arxiv:2412.17136.](https://arxiv.org/abs/2412.17136)
+
+BibTex entry:
 ```
-
+@misc{nabergoj_nf_mcmc_evaluation_2024,
+    author = {Nabergoj, David and \v{S}trumbelj, Erik},
+    title = {Empirical evaluation of normalizing flows in {Markov} {Chain} {Monte} {Carlo}},
+    publisher = {arXiv},
+    month = dec,
+    year = {2024},
+    note = {arxiv:2412.17136}
+}
 ```
