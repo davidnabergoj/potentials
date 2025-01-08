@@ -80,3 +80,50 @@ class Funnel(FunnelBase):
                 sigma=torch.Tensor([scale])
             )
         )
+
+
+class GaussianExponentialPosterior(Potential):
+    """
+    Potential for the posterior distribution p(theta, z | y) = p(y | z, theta) * p(z | theta) * p(theta).
+    The parameter shapes are (n_dim - 1,) for z and (1,) for theta.
+
+    We have:
+    - p(theta) = N(theta; 0, 3^2)
+    - p(z_i | theta) = N(z_i; 0, exp(theta))
+    - p(y_i | z_i, theta) = N(y_i; z_i, sigma^2)
+
+    The likelihood variance, sigma^2, is provided by the user.
+
+    Reference: https://arxiv.org/pdf/2205.14240 (DLMC paper).
+    """
+
+    def __init__(self,
+                 n_observations: int = 99,
+                 hyperprior_scale: float = 3.0,
+                 likelihood_scale: float = 1.0):
+        """
+        :param hyperprior_scale: scale of the hyperprior p(theta) = N(theta; 0, hyperprior_scale^2)
+        :param likelihood_scale: scale of the likelihood p(y_i | z_i, theta) = N(y_i; z_i, likelihood_scale^2)
+        """
+        event_shape = (n_observations + 1,)
+        super().__init__(event_shape)
+        self.hyperprior_scale = hyperprior_scale
+        self.likelihood_scale = likelihood_scale
+        # Dimension 0 is theta, the remaining dimensions are observations.
+        self.prior = Funnel(event_shape=(self.n_dim,), scale=self.hyperprior_scale)
+
+        torch.random.fork_rng()
+        z = torch.randn(size=(n_observations,))
+        self.y = torch.randn(size=(n_observations,)) * likelihood_scale + z
+
+    def compute(self, x: torch.Tensor) -> torch.Tensor:
+        negative_log_prior = self.prior.compute(x)
+        negative_log_likelihood = sum_except_batch(
+            gaussian_potential(
+                self.y,
+                x[..., 1:],
+                torch.tensor(self.likelihood_scale)
+            ),
+            x.shape[:-1]
+        )
+        return negative_log_prior + negative_log_likelihood
