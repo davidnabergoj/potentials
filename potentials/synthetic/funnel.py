@@ -120,7 +120,7 @@ class GaussianExponentialPosterior(Potential):
         negative_log_prior = self.prior.compute(x)
         negative_log_likelihood = sum_except_batch(
             gaussian_potential(
-                self.y,
+                self.y,  # TODO test for shape
                 x[..., 1:],
                 torch.tensor(self.likelihood_scale)
             ),
