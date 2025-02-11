@@ -59,14 +59,14 @@ class SyntheticItemResponseTheory(Potential):
     def mean(self):
         path = Path(__file__).parent.parent / 'true_moments' / f'synthetic_item_response_theory_moments.pt'
         if path.exists():
-            return torch.load(path)[0]
+            return torch.load(path, weights_only=True)[0]
         return super().mean
 
     @property
     def second_moment(self):
         path = Path(__file__).parent.parent / 'true_moments' / f'synthetic_item_response_theory_moments.pt'
         if path.exists():
-            return torch.load(path)[1]
+            return torch.load(path, weights_only=True)[1]
         return super().second_moment
 
 if __name__ == '__main__':

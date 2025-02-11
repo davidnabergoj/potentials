@@ -70,13 +70,15 @@ class StochasticVolatilityModel(Potential):
     @property
     def mean(self):
         return torch.load(
-            pathlib.Path(__file__).absolute().parent.parent / 'true_moments' / 'stochastic_volatility_moments.pt'
+            pathlib.Path(__file__).absolute().parent.parent / 'true_moments' / 'stochastic_volatility_moments.pt',
+            weights_only=True
         )[0]
 
     @property
     def second_moment(self):
         return torch.load(
-            pathlib.Path(__file__).absolute().parent.parent / 'true_moments' / 'stochastic_volatility_moments.pt'
+            pathlib.Path(__file__).absolute().parent.parent / 'true_moments' / 'stochastic_volatility_moments.pt',
+            weights_only=True
         )[1]
 
 

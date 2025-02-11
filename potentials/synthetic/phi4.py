@@ -75,7 +75,7 @@ class Phi4(Potential):
     def mean(self):
         path = pathlib.Path(__file__).absolute().parent.parent / 'true_moments' / f'phi4_{self.length}_moments.pt'
         if path.exists():
-            output = torch.load(path)[0, 0]
+            output = torch.load(path, weights_only=True)[0, 0]
             if self.add_channel_dimension:
                 output = output[None]
         else:
@@ -86,7 +86,7 @@ class Phi4(Potential):
     def second_moment(self):
         path = pathlib.Path(__file__).absolute().parent.parent / 'true_moments' / f'phi4_{self.length}_moments.pt'
         if path.exists():
-            output = torch.load(path)[1, 0]
+            output = torch.load(path, weights_only=True)[1, 0]
             if self.add_channel_dimension:
                 output = output[None]
         else:

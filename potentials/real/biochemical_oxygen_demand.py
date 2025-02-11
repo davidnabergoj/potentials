@@ -40,14 +40,14 @@ class BiochemicalOxygenDemand(Potential):
     def mean(self):
         path = Path(__file__).parent.parent / 'true_moments' / f'biochemical_oxygen_demand_moments.pt'
         if path.exists():
-            return torch.load(path)[0]
+            return torch.load(path, weights_only=True)[0]
         return torch.tensor([2.1695e-01, 9.1293e+01])
 
     @property
     def second_moment(self):
         path = Path(__file__).parent.parent / 'true_moments' / f'biochemical_oxygen_demand_moments.pt'
         if path.exists():
-            return torch.load(path)[1]
+            return torch.load(path, weights_only=True)[1]
         return torch.tensor([6.3547e-01, 1.9868e+04])
 
 

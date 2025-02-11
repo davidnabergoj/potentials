@@ -98,7 +98,7 @@ class RadonVaryingSlopes(StructuredPotential):
     def mean(self):
         path = Path(__file__).parent.parent / 'true_moments' / f'radon_slopes_moments.pt'
         if path.exists():
-            return torch.load(path)[0]
+            return torch.load(path, weights_only=True)[0]
         return torch.tensor([
             0.0241, 0.7076, 0.5255, 0.0853, 0.1900, 0.0990, 0.2909, 0.0690,
             0.2946, -0.0117, -0.0879, -0.0107, -0.2639, -0.0284, 0.0206, -0.0412,
@@ -118,7 +118,7 @@ class RadonVaryingSlopes(StructuredPotential):
     def second_moment(self):
         path = Path(__file__).parent.parent / 'true_moments' / f'radon_slopes_moments.pt'
         if path.exists():
-            return torch.load(path)[1]
+            return torch.load(path, weights_only=True)[1]
         return torch.tensor([
             0.8900, 1.7987, 1.1321, 0.9064, 1.0029, 1.4238, 0.9808, 1.4334, 1.1048,
             0.7175, 1.2014, 0.6894, 0.9244, 1.1787, 0.7037, 1.0067, 0.8190, 1.0213,
@@ -189,7 +189,7 @@ class RadonVaryingIntercepts(StructuredPotential):
     def mean(self):
         path = Path(__file__).parent.parent / 'true_moments' / f'radon_intercepts_moments.pt'
         if path.exists():
-            return torch.load(path)[0]
+            return torch.load(path, weights_only=True)[0]
         return torch.tensor([
             -3.8755e-03, 2.2379e+00, 6.6476e-01, 1.3949e-01, 1.9831e-01,
             1.7487e-01, 7.1439e-02, -4.3277e-02, 2.2047e-01, 7.3308e-02,
@@ -215,7 +215,7 @@ class RadonVaryingIntercepts(StructuredPotential):
     def second_moment(self):
         path = Path(__file__).parent.parent / 'true_moments' / f'radon_intercepts_moments.pt'
         if path.exists():
-            return torch.load(path)[1]
+            return torch.load(path, weights_only=True)[1]
         return torch.tensor([
             0.8878, 10.7000, 0.6184, 0.6928, 1.0159, 0.9530, 0.9565, 1.2634,
             0.9190, 0.9691, 1.0648, 1.0765, 0.9307, 1.0652, 0.7014, 1.0861,
@@ -300,14 +300,14 @@ class RadonVaryingInterceptsAndSlopes(StructuredPotential):
     def mean(self):
         path = Path(__file__).parent.parent / 'true_moments' / f'radon_intercepts_slopes_moments.pt'
         if path.exists():
-            return torch.load(path)[0]
+            return torch.load(path, weights_only=True)[0]
         return super().mean
 
     @property
     def second_moment(self):
         path = Path(__file__).parent.parent / 'true_moments' / f'radon_intercepts_slopes_moments.pt'
         if path.exists():
-            return torch.load(path)[1]
+            return torch.load(path, weights_only=True)[1]
         return super().second_moment
 
 
