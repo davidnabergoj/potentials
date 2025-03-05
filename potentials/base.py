@@ -102,3 +102,33 @@ class PosteriorPotential(Potential):
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
         return self.prior_potential(x) + self.likelihood_potential(x)
+
+
+class ConcatenatedPotential(Potential):
+    def __init__(self,
+                 *potentials: Potential):
+        n_dim = 0
+        for p in potentials:
+            assert len(p.event_shape) == 1
+            n_dim += p.event_shape[0]
+        event_shape = (n_dim,)
+        self.potentials = potentials
+        super().__init__(event_shape)
+
+    def compute(self, x: torch.Tensor) -> torch.Tensor:
+        dim_start = 0
+        dim_end = None
+        u = torch.zeros(size=x.shape[:-1]).to(x)
+        for potential in self.potentials:
+            if dim_end is None:
+                dim_end = potential.event_shape[0]
+            else:
+                dim_start = dim_end
+                dim_end = dim_start + potential.event_shape[0]
+            u += potential.compute(x[..., dim_start:dim_end])
+        return u
+
+    def sample(self, batch_shape: Union[torch.Size, Tuple[int, ...]]) -> torch.Tensor:
+        return torch.concat([
+            p.sample(batch_shape) for p in self.potentials
+        ], dim=-1)
