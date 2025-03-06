@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 from potentials.base import Potential
-from potentials.utils import get_batch_shape, unsqueeze_to_batch, sum_except_batch
+from potentials.utils import get_batch_shape, unsqueeze_to_batch, sum_except_batch, sample_from_gamma
 
 
 def gaussian_potential(x: torch.Tensor, mu: torch.Tensor, sigma: torch.Tensor):
@@ -67,8 +67,8 @@ class DiagonalGaussian0(DiagonalGaussian):
         if isinstance(event_shape, int):
             event_shape = (event_shape,)
         mu = torch.zeros(event_shape)
-        rng = np.random.RandomState(seed=seed)
-        eigenvalues = torch.as_tensor(1 / np.sort(rng.gamma(shape=gamma_shape, scale=1.0, size=event_shape)))
+        tmp = sample_from_gamma(event_shape, gamma_shape, 1.0, seed=seed)
+        eigenvalues = (1 / torch.sort(tmp)[0]).to(mu)
         super().__init__(mu, eigenvalues)
 
 
