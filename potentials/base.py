@@ -85,7 +85,22 @@ class StructuredPotential(Potential):
         raise NotImplementedError
 
 
-class PosteriorPotential(Potential):
+class Posterior(Potential):
+    def posterior_predictive_draws(self, posterior_draws: torch.Tensor, n_draws: int = 100) -> torch.Tensor:
+        """
+        Sample posterior predictive draws given parameters.
+
+        :param posterior_draws: tensor of parameters with shape (n, n_dim)
+        :param n_draws: number of samples to draw for each parameter vector.
+        :return: tensor of posterior predictive draws with shape (n_draws, n, n_data)
+        """
+        raise NotImplementedError
+
+    def normalized_log_posterior_predictive_density(self, posterior_draws: torch.Tensor) -> torch.Tensor:
+        raise NotImplementedError
+
+
+class SplitPosteriorPotential(Potential):
     """
     Potential U(x) = P(x) + L(x) consisting of two components:
     * a "prior potential" P (defined by the negative log density of a prior distribution)

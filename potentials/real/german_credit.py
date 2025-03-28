@@ -1,6 +1,6 @@
 import numpy as np
 
-from potentials.base import Potential
+from potentials.base import Posterior
 import torch
 from pathlib import Path
 import urllib.request
@@ -35,7 +35,7 @@ def load_german_credit():
     return x, y
 
 
-class GermanCredit(Potential):
+class GermanCredit(Posterior):
     """
     tau ~ Gamma(0.5, 0.5)
     beta[i] ~ N(0, 1)
@@ -105,8 +105,32 @@ class GermanCredit(Potential):
             8.2957e-01, 1.0161e+00
         ])
 
+    def _compute_likelihood_parameters(self, x: torch.Tensor):
+        assert x.shape[-1] == 26
+        batch_shape = x.shape[:-1]
+        beta = x[..., 1:]
+        unnormalized_tau = x[..., 0]
+        tau, _ = bound_parameter(unnormalized_tau, batch_shape, low=0.0, high=torch.inf)
+        return torch.sigmoid(
+            torch.einsum(
+                'nf,...f->...nf',
+                self.features,
+                tau.view(*batch_shape, 1) * beta
+            ).sum(dim=-1)  # shape = (*batch_shape, features)
+        )
 
-class SparseGermanCredit(Potential):
+    def posterior_predictive_draws(self, posterior_draws: torch.Tensor, n_draws: int = 100) -> torch.Tensor:
+        probs = self._compute_likelihood_parameters(posterior_draws)
+        dist = torch.distributions.Bernoulli(probs=probs)
+        return dist.sample((n_draws,))
+
+    def normalized_log_posterior_predictive_density(self, posterior_draws: torch.Tensor):
+        probs = self._compute_likelihood_parameters(posterior_draws)
+        log_likelihood = torch.distributions.Bernoulli(probs=probs).log_prob(self.labels)
+        return log_likelihood.exp().mean(dim=1).log().mean()  # Take mean instead of sum
+
+
+class SparseGermanCredit(Posterior):
     """
     tau ~ Gamma(0.5, 0.5)
     beta[i] ~ N(0, 1)
@@ -180,3 +204,32 @@ class SparseGermanCredit(Potential):
             1.4063, 2.0248, 1.5091, 3.7975, 2.4856, 1.2449, 3.0840, 1.8412, 3.0192,
             1.6737, 3.2266, 3.2037, 1.2882, 1.6431, 5.2194
         ])
+
+    def _compute_likelihood_parameters(self, x: torch.Tensor):
+        assert x.shape[-1] == 51
+        batch_shape = x.shape[:-1]
+
+        beta = x[..., 1:26]
+        unnormalized_tau = x[..., 0]
+        unconstrained_lambda = x[..., 26:]
+
+        tau, _ = bound_parameter(unnormalized_tau, batch_shape, low=0.0, high=torch.inf)
+        lmbd, _ = bound_parameter(unconstrained_lambda, batch_shape, low=0.0, high=torch.inf)
+
+        return torch.sigmoid(
+            torch.einsum(
+                'nf,...f->...nf',
+                self.features,
+                tau.view(*batch_shape, 1) * beta * lmbd
+            ).sum(dim=-1)  # shape = (*batch_shape, features)
+        )
+
+    def posterior_predictive_draws(self, posterior_draws: torch.Tensor, n_draws: int = 100) -> torch.Tensor:
+        probs = self._compute_likelihood_parameters(posterior_draws)
+        dist = torch.distributions.Bernoulli(probs=probs)
+        return dist.sample((n_draws,))
+
+    def normalized_log_posterior_predictive_density(self, posterior_draws: torch.Tensor):
+        probs = self._compute_likelihood_parameters(posterior_draws)
+        log_likelihood = torch.distributions.Bernoulli(probs=probs).log_prob(self.labels)
+        return log_likelihood.exp().mean(dim=1).log().mean()  # Take mean instead of sum
