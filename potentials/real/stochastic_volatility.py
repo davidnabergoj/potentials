@@ -105,7 +105,6 @@ class StochasticVolatilityModel(Posterior):
 
         return y_loc, y_scale
 
-
     def normalized_log_posterior_predictive_density(self, posterior_draws: torch.Tensor) -> torch.Tensor:
         y_loc, y_scale = self._compute_likelihood_parameters(posterior_draws)
         log_likelihood = td.Independent(
