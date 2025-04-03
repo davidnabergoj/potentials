@@ -3,7 +3,7 @@ from typing import Union, Tuple
 import torch
 
 from potentials.base import StructuredPotential
-from potentials.synthetic.gaussian.diagonal import gaussian_potential, gaussian_potential_v2
+from potentials.synthetic.gaussian.diagonal import gaussian_potential
 
 
 class Banana(StructuredPotential):
