@@ -6,6 +6,7 @@ import torch
 import torch.distributions as td
 
 from potentials.base import Posterior
+from potentials.synthetic.gaussian.diagonal import gaussian_potential
 from potentials.transformations import bound_parameter
 from potentials.utils import sum_except_batch
 
@@ -59,10 +60,8 @@ class StochasticVolatilityModel(Posterior):
 
         y_scale = torch.exp(h / 2)
         y_loc = torch.zeros_like(y_scale)
-        log_likelihood = td.Independent(
-            td.Normal(loc=y_loc, scale=y_scale),
-            reinterpreted_batch_ndims=1
-        ).log_prob(self.measurements)
+
+        log_likelihood = -gaussian_potential(self.measurements[None], y_loc, y_scale).sum(dim=-1)
 
         log_prob = log_likelihood + log_prior + log_det
         return -log_prob
