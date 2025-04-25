@@ -5,19 +5,19 @@ import torch
 from potentials.base import StructuredPotential
 from potentials.synthetic.gaussian.diagonal import gaussian_potential
 
-
-class Banana(StructuredPotential):
+class ShiftedBanana(StructuredPotential):
     def __init__(self,
                  event_shape=(100,),
                  mu=0.0,
                  sigma=10.0,
                  alpha=0.03,
                  beta=-3.0,
-                 gamma=1.0):
+                 gamma=1.0,
+                 mu_rest: float = 0.0):
         """
         x1 ~ N(mu, sigma^2)
-        x2 | x1 ~ N(alpha * x1^2 + beta, gamma^2)
-        xi ~ N(0, 1)
+        x2 | x1 ~ N(alpha * (x1 - mu)^2 + beta, gamma^2)
+        xi ~ N(mu_rest, 1)
 
         References:
         - Heikki Haario, Eero Saksman, and Johanna Tamminen. Adaptive proposal distribution for random walk metropolis algorithm. Computational statistics, 1999.
@@ -32,6 +32,7 @@ class Banana(StructuredPotential):
         self.alpha = torch.tensor(alpha)
         self.beta = torch.tensor(beta)
         self.gamma = torch.tensor(gamma)
+        self.mu_rest = torch.tensor(mu_rest)
 
     @property
     def variance(self):
@@ -49,23 +50,23 @@ class Banana(StructuredPotential):
             [
                 self.mu,
                 self.alpha * (self.sigma ** 2 + self.mu ** 2) + self.beta,
-            ] + [0.0] * (self.n_dim - 2)
+            ] + [self.mu_rest] * (self.n_dim - 2)
         )
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
         u_0 = gaussian_potential(x[..., 0], self.mu, self.sigma)
-        u_1 = gaussian_potential(x[..., 1], self.alpha * x[..., 0] ** 2 + self.beta, self.gamma)
+        u_1 = gaussian_potential(x[..., 1], self.alpha * (x[..., 0] - self.mu) ** 2 + self.beta, self.gamma)
         if self.n_dim > 2:
-            u_rest = gaussian_potential(x[..., 2:], torch.tensor(0.0), torch.tensor(1.0))
+            u_rest = gaussian_potential(x[..., 2:], self.mu_rest, torch.tensor(1.0))
             return u_0 + u_1 + u_rest.sum(dim=-1)
         else:
             return u_0 + u_1
 
     def sample(self, sample_shape: Union[torch.Size, Tuple[int, ...]]) -> torch.Tensor:
         x_0 = torch.randn(size=sample_shape) * self.sigma + self.mu
-        x_1 = torch.randn(size=sample_shape) * self.gamma + (self.alpha * x_0 ** 2 + self.beta)
+        x_1 = torch.randn(size=sample_shape) * self.gamma + (self.alpha * (x_0 - self.mu) ** 2 + self.beta)
         if self.n_dim > 2:
-            x_rest = torch.randn(size=(*sample_shape, self.n_dim - 2))
+            x_rest = torch.randn(size=(*sample_shape, self.n_dim - 2)) + self.mu_rest
             return torch.concat([
                 x_0[..., None],
                 x_1[..., None],
@@ -76,3 +77,14 @@ class Banana(StructuredPotential):
                 x_0[..., None],
                 x_1[..., None]
             ], dim=-1)
+
+
+class Banana(ShiftedBanana):
+    def __init__(self,
+                 event_shape=(100,),
+                 mu=0.0,
+                 sigma=10.0,
+                 alpha=0.03,
+                 beta=-3.0,
+                 gamma=1.0):
+        super().__init__(event_shape, mu=mu, sigma=sigma, alpha=alpha, beta=beta, gamma=gamma, mu_rest=0.0)
