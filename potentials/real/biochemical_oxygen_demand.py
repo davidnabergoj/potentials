@@ -50,6 +50,9 @@ class BiochemicalOxygenDemand(Potential):
             return torch.load(path, weights_only=True)[1]
         return torch.tensor([6.3547e-01, 1.9868e+04])
 
+    @property
+    def variance(self):
+        return self.second_moment - self.mean ** 2
 
 if __name__ == '__main__':
     u = BiochemicalOxygenDemand()

@@ -76,6 +76,9 @@ class EightSchools(Potential):
             4.7906e-01, 5.7163e-01, 5.3950e-01, 6.4698e-01, 7.1619e-01
         ])
 
+    @property
+    def variance(self):
+        return self.second_moment - self.mean ** 2
 
 if __name__ == '__main__':
     u = EightSchools()

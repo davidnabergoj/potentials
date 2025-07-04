@@ -132,6 +132,9 @@ class RadonVaryingSlopes(StructuredPotential):
             1.1422, 1.1453, 0.9269, 1.0586, 0.7017, 1.2390, 0.8300, 0.8291
         ])
 
+    @property
+    def variance(self):
+        return self.second_moment - self.mean ** 2
 
 class RadonVaryingIntercepts(StructuredPotential):
     def __init__(self, n_counties: int = 85):
@@ -231,6 +234,9 @@ class RadonVaryingIntercepts(StructuredPotential):
             0.7281
         ])
 
+    @property
+    def variance(self):
+        return self.second_moment - self.mean ** 2
 
 class RadonVaryingInterceptsAndSlopes(StructuredPotential):
     def __init__(self, n_counties: int = 85):
@@ -310,6 +316,9 @@ class RadonVaryingInterceptsAndSlopes(StructuredPotential):
             return torch.load(path, weights_only=True)[1]
         return super().second_moment
 
+    @property
+    def variance(self):
+        return self.second_moment - self.mean ** 2
 
 if __name__ == '__main__':
     for target in [RadonVaryingSlopes(), RadonVaryingIntercepts(), RadonVaryingInterceptsAndSlopes()]:

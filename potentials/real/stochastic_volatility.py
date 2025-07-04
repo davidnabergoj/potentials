@@ -80,6 +80,10 @@ class StochasticVolatilityModel(Posterior):
             weights_only=True
         )[1]
 
+    @property
+    def variance(self):
+        return self.second_moment - self.mean ** 2
+    
     def _compute_likelihood_parameters(self, x: torch.Tensor):
         batch_shape = x.shape[:-1]
 

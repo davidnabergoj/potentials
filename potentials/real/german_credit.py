@@ -104,6 +104,10 @@ class GermanCredit(Posterior):
             9.4624e-01, 6.5050e-01, 7.3698e-01, 8.1886e-01, 6.6457e-01, 7.0312e-01,
             8.2957e-01, 1.0161e+00
         ])
+    
+    @property
+    def variance(self):
+        return self.second_moment - self.mean ** 2
 
     def _compute_likelihood_parameters(self, x: torch.Tensor):
         assert x.shape[-1] == 26

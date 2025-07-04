@@ -78,6 +78,10 @@ class SyntheticItemResponseTheory(Posterior):
             return torch.load(path, weights_only=True)[1]
         return super().second_moment
 
+    @property
+    def variance(self):
+        return self.second_moment - self.mean ** 2
+    
 if __name__ == '__main__':
     u = SyntheticItemResponseTheory()
     print(u.mean.shape)
