@@ -209,6 +209,10 @@ class SparseGermanCredit(Posterior):
             1.6737, 3.2266, 3.2037, 1.2882, 1.6431, 5.2194
         ])
 
+    @property
+    def variance(self):
+        return self.second_moment - self.mean ** 2
+
     def _compute_likelihood_parameters(self, x: torch.Tensor):
         assert x.shape[-1] == 51
         batch_shape = x.shape[:-1]
