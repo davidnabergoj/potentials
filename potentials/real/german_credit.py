@@ -5,6 +5,7 @@ import torch
 from pathlib import Path
 import urllib.request
 import zipfile
+import torch.distributions as td
 
 from potentials.transformations import bound_parameter
 
@@ -55,32 +56,36 @@ class GermanCredit(Posterior):
 
         beta = x[..., 1:]
         unnormalized_tau = x[..., 0]
-        tau, log_det_tau = bound_parameter(unnormalized_tau, batch_shape, low=0.0, high=torch.inf)
+        tau, log_det_tau = bound_parameter(
+            unnormalized_tau,
+            batch_shape,
+            low=0.0,
+            high=torch.inf
+        )
         log_det = log_det_tau
 
         # Compute the log prior
         log_prior = torch.add(
-            torch.distributions.Gamma(0.5, 0.5).log_prob(tau),
-            torch.distributions.Normal(0.0, 1.0).log_prob(beta).sum(dim=-1),
+            td.Gamma(0.5, 0.5).log_prob(tau),
+            td.Normal(0.0, 1.0).log_prob(beta).sum(dim=-1),
         )
 
         # Compute the log likelihood
-        probs = torch.sigmoid(
-            torch.einsum(
-                'nf,...f->...nf',
-                self.features,
-                tau.view(*batch_shape, 1) * beta
-            ).sum(dim=-1)  # shape = (*batch_shape, features)
-        )
-        log_likelihood = torch.distributions.Bernoulli(probs=probs).log_prob(self.labels).sum(dim=-1)
-
+        logits = torch.einsum(
+            'nf,...f->...nf',
+            self.features,
+            tau.view(*batch_shape, 1) * beta
+        ).sum(dim=-1)  # shape = (*batch_shape, features)
+        log_likelihood = td.Bernoulli(
+            logits=logits
+        ).log_prob(self.labels).sum(dim=-1)
         log_probability = log_likelihood + log_prior + log_det
-
         return -(log_probability + log_det_tau)
 
     @property
     def mean(self):
-        path = Path(__file__).parent.parent / 'true_moments' / f'german_credit_moments.pt'
+        path = Path(__file__).parent.parent / 'true_moments' / \
+            f'german_credit_moments.pt'
         if path.exists():
             return torch.load(path, weights_only=True)[0]
         return torch.tensor([
@@ -94,7 +99,8 @@ class GermanCredit(Posterior):
 
     @property
     def second_moment(self):
-        path = Path(__file__).parent.parent / 'true_moments' / f'german_credit_moments.pt'
+        path = Path(__file__).parent.parent / 'true_moments' / \
+            f'german_credit_moments.pt'
         if path.exists():
             return torch.load(path, weights_only=True)[1]
         return torch.tensor([
@@ -104,7 +110,7 @@ class GermanCredit(Posterior):
             9.4624e-01, 6.5050e-01, 7.3698e-01, 8.1886e-01, 6.6457e-01, 7.0312e-01,
             8.2957e-01, 1.0161e+00
         ])
-    
+
     @property
     def variance(self):
         return self.second_moment - self.mean ** 2
@@ -114,23 +120,27 @@ class GermanCredit(Posterior):
         batch_shape = x.shape[:-1]
         beta = x[..., 1:]
         unnormalized_tau = x[..., 0]
-        tau, _ = bound_parameter(unnormalized_tau, batch_shape, low=0.0, high=torch.inf)
-        return torch.sigmoid(
-            torch.einsum(
-                'nf,...f->...nf',
-                self.features,
-                tau.view(*batch_shape, 1) * beta
-            ).sum(dim=-1)  # shape = (*batch_shape, features)
+        tau, _ = bound_parameter(
+            unnormalized_tau,
+            batch_shape,
+            low=0.0,
+            high=torch.inf
         )
+        logits = torch.einsum(
+            'nf,...f->...nf',
+            self.features,
+            tau.view(*batch_shape, 1) * beta
+        ).sum(dim=-1)  # shape = (*batch_shape, features)
+        return logits
 
     def posterior_predictive_draws(self, posterior_draws: torch.Tensor, n_draws: int = 100) -> torch.Tensor:
-        probs = self._compute_likelihood_parameters(posterior_draws)
-        dist = torch.distributions.Bernoulli(probs=probs)
+        logits = self._compute_likelihood_parameters(posterior_draws)
+        dist = td.Bernoulli(logits=logits)
         return dist.sample((n_draws,))
 
     def normalized_log_posterior_predictive_density(self, posterior_draws: torch.Tensor):
-        probs = self._compute_likelihood_parameters(posterior_draws)
-        log_likelihood = torch.distributions.Bernoulli(probs=probs).log_prob(self.labels)
+        logits = self._compute_likelihood_parameters(posterior_draws)
+        log_likelihood = td.Bernoulli(logits=logits).log_prob(self.labels)
         return log_likelihood.exp().mean(dim=1).log().mean()  # Take mean instead of sum
 
 
@@ -153,36 +163,46 @@ class SparseGermanCredit(Posterior):
         unnormalized_tau = x[..., 0]
         unconstrained_lambda = x[..., 26:]
 
-        tau, log_det_tau = bound_parameter(unnormalized_tau, batch_shape, low=0.0, high=torch.inf)
-        lmbd, log_det_lmbd = bound_parameter(unconstrained_lambda, batch_shape, low=0.0, high=torch.inf)
+        tau, log_det_tau = bound_parameter(
+            unnormalized_tau,
+            batch_shape,
+            low=0.0,
+            high=torch.inf
+        )
+        lmbd, log_det_lmbd = bound_parameter(
+            unconstrained_lambda,
+            batch_shape,
+            low=0.0,
+            high=torch.inf
+        )
         log_det = log_det_tau + log_det_lmbd
 
         # Compute the log prior
         log_prior = torch.add(
-            torch.distributions.Gamma(0.5, 0.5).log_prob(tau),
+            td.Gamma(0.5, 0.5).log_prob(tau),
             torch.add(
-                torch.distributions.Gamma(0.5, 0.5).log_prob(lmbd).sum(dim=-1),
-                torch.distributions.Normal(0.0, 1.0).log_prob(beta).sum(dim=-1)
+                td.Gamma(0.5, 0.5).log_prob(lmbd).sum(dim=-1),
+                td.Normal(0.0, 1.0).log_prob(beta).sum(dim=-1)
             )
         )
 
         # Compute the log likelihood
-        probs = torch.sigmoid(
-            torch.einsum(
-                'nf,...f->...nf',
-                self.features,
-                tau.view(*batch_shape, 1) * beta * lmbd
-            ).sum(dim=-1)  # shape = (*batch_shape, features)
-        )
-        log_likelihood = torch.distributions.Bernoulli(probs=probs).log_prob(self.labels).sum(dim=-1)
-
+        logits = torch.einsum(
+            'nf,...f->...nf',
+            self.features,
+            tau.view(*batch_shape, 1) * beta * lmbd
+        ).sum(dim=-1)  # shape = (*batch_shape, features)
+        log_likelihood = td.Bernoulli(
+            logits=logits
+        ).log_prob(self.labels).sum(dim=-1)
         log_probability = log_likelihood + log_prior + log_det
 
         return -log_probability
 
     @property
     def mean(self):
-        path = Path(__file__).parent.parent / 'true_moments' / f'sparse_german_credit_moments.pt'
+        path = Path(__file__).parent.parent / 'true_moments' / \
+            f'sparse_german_credit_moments.pt'
         if path.exists():
             return torch.load(path, weights_only=True)[0]
         return torch.tensor([
@@ -197,7 +217,8 @@ class SparseGermanCredit(Posterior):
 
     @property
     def second_moment(self):
-        path = Path(__file__).parent.parent / 'true_moments' / f'sparse_german_credit_moments.pt'
+        path = Path(__file__).parent.parent / 'true_moments' / \
+            f'sparse_german_credit_moments.pt'
         if path.exists():
             return torch.load(path, weights_only=True)[1]
         return torch.tensor([
@@ -221,23 +242,31 @@ class SparseGermanCredit(Posterior):
         unnormalized_tau = x[..., 0]
         unconstrained_lambda = x[..., 26:]
 
-        tau, _ = bound_parameter(unnormalized_tau, batch_shape, low=0.0, high=torch.inf)
-        lmbd, _ = bound_parameter(unconstrained_lambda, batch_shape, low=0.0, high=torch.inf)
-
-        return torch.sigmoid(
-            torch.einsum(
-                'nf,...f->...nf',
-                self.features,
-                tau.view(*batch_shape, 1) * beta * lmbd
-            ).sum(dim=-1)  # shape = (*batch_shape, features)
+        tau, _ = bound_parameter(
+            unnormalized_tau,
+            batch_shape,
+            low=0.0,
+            high=torch.inf
         )
+        lmbd, _ = bound_parameter(
+            unconstrained_lambda,
+            batch_shape,
+            low=0.0,
+            high=torch.inf
+        )
+        logits = torch.einsum(
+            'nf,...f->...nf',
+            self.features,
+            tau.view(*batch_shape, 1) * beta * lmbd
+        ).sum(dim=-1)  # shape = (*batch_shape, features)
+        return logits
 
     def posterior_predictive_draws(self, posterior_draws: torch.Tensor, n_draws: int = 100) -> torch.Tensor:
-        probs = self._compute_likelihood_parameters(posterior_draws)
-        dist = torch.distributions.Bernoulli(probs=probs)
+        logits = self._compute_likelihood_parameters(posterior_draws)
+        dist = td.Bernoulli(logits=logits)
         return dist.sample((n_draws,))
 
     def normalized_log_posterior_predictive_density(self, posterior_draws: torch.Tensor):
-        probs = self._compute_likelihood_parameters(posterior_draws)
-        log_likelihood = torch.distributions.Bernoulli(probs=probs).log_prob(self.labels)
+        logits = self._compute_likelihood_parameters(posterior_draws)
+        log_likelihood = td.Bernoulli(logits=logits).log_prob(self.labels)
         return log_likelihood.exp().mean(dim=1).log().mean()  # Take mean instead of sum
