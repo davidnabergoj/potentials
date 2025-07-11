@@ -39,7 +39,7 @@ def affine_transform(x: torch.Tensor,
     """
     y = x * scale + shift
     log_det = sum_except_batch(
-        torch.full(size=x.shape, fill_value=math.log(math.abs(scale)), dtype=x.dtype, device=x.device),
+        torch.full(size=x.shape, fill_value=math.log(abs(scale)), dtype=x.dtype, device=x.device),
         batch_shape
     )
     return y, log_det
