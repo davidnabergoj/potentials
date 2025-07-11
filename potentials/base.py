@@ -49,7 +49,26 @@ class Potential(nn.Module):
         return self.variance + self.mean ** 2
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Compute the negative log probability density of samples x under this model.
+        """
         raise NotImplementedError
+
+    def score(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Compute the score of samples x under this model.
+        The score is the gradient of the negative log probability density under inputs x with respect to inputs x.
+        """
+        v = x.clone()  # Clone the inputs
+        v.requires_grad_(True)  # Ensure v requires grad
+        with torch.enable_grad():
+            neg_log_prob = self.compute(v)
+            score = -torch.autograd.grad(
+                neg_log_prob.sum(),
+                v,
+                create_graph=True
+            )[0].detach()
+        return score
 
     def compute_grad(self, x: torch.Tensor):
         x_clone = torch.clone(x)
