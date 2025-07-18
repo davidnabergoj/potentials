@@ -4,12 +4,12 @@ from pathlib import Path
 
 import torch
 import torch.distributions as td
-from potentials.base import Potential
+from potentials.base import Posterior
 from potentials.transformations import bound_parameter
 from potentials.utils import sum_except_batch
 
 
-class EightSchools(Potential):
+class EightSchools(Posterior):
     """
 
     Reference: https://raw.githubusercontent.com/stan-dev/example-models/master/misc/eight_schools/eight_schools.data.json
@@ -38,14 +38,16 @@ class EightSchools(Potential):
         log_tau = x[..., 1]
         theta_prime = x[..., 2:]
 
-        tau, log_det_tau = bound_parameter(log_tau, batch_shape, low=0.0, high=torch.inf)
+        tau, log_det_tau = bound_parameter(
+            log_tau, batch_shape, low=0.0, high=torch.inf)
         log_det = log_det_tau
 
         theta = mu[..., None] + tau[..., None] * theta_prime
 
         log_prob_mu = td.Normal(loc=0.0, scale=10.0).log_prob(mu)
         log_prob_tau = td.LogNormal(loc=5.0, scale=1.0).log_prob(tau)
-        log_prob_theta_prime = sum_except_batch(td.Normal(loc=0.0, scale=1.0).log_prob(theta_prime), batch_shape)
+        log_prob_theta_prime = sum_except_batch(
+            td.Normal(loc=0.0, scale=1.0).log_prob(theta_prime), batch_shape)
         log_prior = log_prob_mu + log_prob_tau + log_prob_theta_prime
 
         log_likelihood = td.Independent(
@@ -58,7 +60,8 @@ class EightSchools(Potential):
 
     @property
     def mean(self):
-        path = Path(__file__).parent.parent / 'true_moments' / f'eight_schools_moments.pt'
+        path = Path(__file__).parent.parent / 'true_moments' / \
+            f'eight_schools_moments.pt'
         if path.exists():
             return torch.load(path, weights_only=True)[0]
         return torch.tensor([
@@ -68,7 +71,8 @@ class EightSchools(Potential):
 
     @property
     def second_moment(self):
-        path = Path(__file__).parent.parent / 'true_moments' / f'eight_schools_moments.pt'
+        path = Path(__file__).parent.parent / 'true_moments' / \
+            f'eight_schools_moments.pt'
         if path.exists():
             return torch.load(path, weights_only=True)[1]
         return torch.tensor([
@@ -79,6 +83,40 @@ class EightSchools(Potential):
     @property
     def variance(self):
         return self.second_moment - self.mean ** 2
+
+    def _compute_likelihood_parameters(self, x: torch.Tensor):
+        batch_shape = x.shape[:-1]
+        mu = x[..., 0]
+        log_tau = x[..., 1]
+        theta_prime = x[..., 2:]
+
+        tau, _ = bound_parameter(
+            log_tau,
+            batch_shape,
+            low=0.0,
+            high=torch.inf
+        )
+
+        theta = mu[..., None] + tau[..., None] * theta_prime
+        return theta
+
+    def posterior_predictive_draws(self, posterior_draws: torch.Tensor, n_draws: int = 100) -> torch.Tensor:
+        theta = self._compute_likelihood_parameters(posterior_draws)
+        dist = td.Independent(
+            td.Normal(loc=theta, scale=self.scales),
+            reinterpreted_batch_ndims=1
+        )
+        return dist.sample((n_draws,))
+
+    def normalized_log_posterior_predictive_density(self, posterior_draws: torch.Tensor):
+        theta = self._compute_likelihood_parameters(posterior_draws)
+        dist = td.Independent(
+            td.Normal(loc=theta, scale=self.scales),
+            reinterpreted_batch_ndims=1
+        )
+        log_likelihood = dist.log_prob(self.measurements)
+        return log_likelihood.exp().mean(dim=-1).log().mean()  # Take mean instead of sum
+
 
 if __name__ == '__main__':
     u = EightSchools()

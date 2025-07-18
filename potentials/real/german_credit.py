@@ -141,7 +141,7 @@ class GermanCredit(Posterior):
     def normalized_log_posterior_predictive_density(self, posterior_draws: torch.Tensor):
         logits = self._compute_likelihood_parameters(posterior_draws)
         log_likelihood = td.Bernoulli(logits=logits).log_prob(self.labels)
-        return log_likelihood.exp().mean(dim=1).log().mean()  # Take mean instead of sum
+        return log_likelihood.exp().mean(dim=-1).log().mean()  # Take mean instead of sum
 
 
 class SparseGermanCredit(Posterior):
