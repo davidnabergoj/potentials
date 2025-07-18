@@ -114,7 +114,7 @@ class StochasticVolatilityModel(Posterior):
             td.Normal(loc=y_loc, scale=y_scale),
             reinterpreted_batch_ndims=1
         ).log_prob(self.measurements)
-        return log_likelihood.exp().mean(dim=1).log().mean()  # Take mean instead of sum
+        return log_likelihood.exp().mean(dim=-1).log().mean()  # Take mean instead of sum
 
 
 if __name__ == '__main__':
