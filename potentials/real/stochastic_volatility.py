@@ -13,6 +13,7 @@ from potentials.utils import sum_except_batch
 
 class StochasticVolatilityModel(Posterior):
     """
+    Stochastic volatility model.
 
     Data retrieved: August 21, 2024
     Data url: https://query1.finance.yahoo.com/v7/finance/download/%5EGSPC?period1=1277424000&period2=1593043200&interval=1d&events=history
@@ -21,6 +22,12 @@ class StochasticVolatilityModel(Posterior):
     """
 
     def __init__(self, n_measurements: int = 3000):
+        """
+        StochasticVolatilityModel constructor.
+
+        :param int n_measurements: maximum number of measurements to use. A smaller number results in a simpler model 
+         whose log probability density is computed faster.
+        """
         data_path = Path(__file__).parent / 'data' / '^GSPC.csv'
         with open(data_path, 'r') as f:
             reader = csv.reader(f, delimiter=',')
@@ -32,6 +39,12 @@ class StochasticVolatilityModel(Posterior):
         super().__init__(event_shape=(self.n_measurements + 3,))
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Compute the negative log probability density of the model.
+
+        :param torch.Tensor x: tensor with shape `(self.n_measurements + 3,)`. The first `self.n_measurements` elements
+        correspond to returns coefficients.
+        """
         # (z, unconstrained_sigma, unconstrained_mu, unconstrained_phi)
         batch_shape = x.shape[:-1]
 
