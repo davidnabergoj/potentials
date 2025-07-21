@@ -105,7 +105,7 @@ class StochasticVolatilityModel(Posterior):
         unconstrained_mu = x[..., self.n_measurements + 1]
         unconstrained_phi = x[..., self.n_measurements + 2]
 
-        phi_transformed, log_det_phi_transformed = bound_parameter(unconstrained_phi, batch_shape, low=0.0, high=1.0)
+        phi_transformed, _ = bound_parameter(unconstrained_phi, batch_shape, low=0.0, high=1.0)
         sigma, _ = bound_parameter(unconstrained_sigma, batch_shape, low=0.0, high=torch.inf)
         mu, _ = bound_parameter(unconstrained_mu, batch_shape, low=0.0, high=torch.inf)
 
@@ -121,12 +121,21 @@ class StochasticVolatilityModel(Posterior):
 
         return y_loc, y_scale
 
-    def normalized_log_posterior_predictive_density(self, posterior_draws: torch.Tensor) -> torch.Tensor:
+    def posterior_predictive_draws(self, posterior_draws: torch.Tensor, n_draws: int = 100) -> torch.Tensor:
         y_loc, y_scale = self._compute_likelihood_parameters(posterior_draws)
-        log_likelihood = td.Independent(
+        dist = td.Independent(
             td.Normal(loc=y_loc, scale=y_scale),
             reinterpreted_batch_ndims=1
-        ).log_prob(self.measurements)
+        )
+        return dist.sample((n_draws,))
+
+    def normalized_log_posterior_predictive_density(self, posterior_draws: torch.Tensor) -> torch.Tensor:
+        y_loc, y_scale = self._compute_likelihood_parameters(posterior_draws)
+        dist = td.Independent(
+            td.Normal(loc=y_loc, scale=y_scale),
+            reinterpreted_batch_ndims=1
+        )
+        log_likelihood = dist.log_prob(self.measurements)
         return log_likelihood.exp().mean(dim=-1).log().mean()  # Take mean instead of sum
 
 
