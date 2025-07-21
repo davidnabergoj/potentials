@@ -20,14 +20,14 @@ class StochasticVolatilityModel(Posterior):
     Reference: https://proceedings.mlr.press/v130/hoffman21a/hoffman21a.pdf
     """
 
-    def __init__(self):
+    def __init__(self, n_measurements: int = 3000):
         data_path = Path(__file__).parent / 'data' / '^GSPC.csv'
         with open(data_path, 'r') as f:
             reader = csv.reader(f, delimiter=',')
             next(reader)  # skip header
             closing_prices = torch.tensor([float(row[4]) for row in reader], dtype=torch.float)
 
-        self.measurements: torch.Tensor = closing_prices
+        self.measurements: torch.Tensor = closing_prices[:n_measurements]
         self.n_measurements = len(self.measurements)
         super().__init__(event_shape=(self.n_measurements + 3,))
 
@@ -54,7 +54,7 @@ class StochasticVolatilityModel(Posterior):
         phi = phi_transformed * 2 - 1
 
         h = torch.zeros(size=(*batch_shape, self.n_measurements), device=x.device, dtype=x.dtype)
-        h[..., 0] = mu + sigma * z[..., 0] - torch.sqrt(1 - phi ** 2)
+        h[..., 0] = mu + sigma * z[..., 0] / torch.sqrt(1 - phi ** 2)
         for i in range(1, self.n_measurements):
             h[..., i] = mu + sigma * z[..., i] + phi * (h[..., i - 1] - mu)
 
@@ -99,7 +99,7 @@ class StochasticVolatilityModel(Posterior):
         phi = phi_transformed * 2 - 1
 
         h = torch.zeros(size=(*batch_shape, self.n_measurements), device=x.device, dtype=x.dtype)
-        h[..., 0] = mu + sigma * z[..., 0] - torch.sqrt(1 - phi ** 2)
+        h[..., 0] = mu + sigma * z[..., 0] / torch.sqrt(1 - phi ** 2)
         for i in range(1, self.n_measurements):
             h[..., i] = mu + sigma * z[..., i] + phi * (h[..., i - 1] - mu)
 
