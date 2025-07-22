@@ -18,7 +18,7 @@ def exponential_transform(x: torch.Tensor,
     :rtype: Tuple[torch.Tensor, torch.Tensor]
     """
     y = torch.exp(x)
-    log_det = sum_except_batch(y, batch_shape)
+    log_det = sum_except_batch(x, batch_shape)
     return y, log_det
 
 
@@ -39,7 +39,7 @@ def affine_transform(x: torch.Tensor,
     """
     y = x * scale + shift
     log_det = sum_except_batch(
-        torch.full(size=x.shape, fill_value=math.log(scale), dtype=x.dtype, device=x.device),
+        torch.full(size=x.shape, fill_value=math.log(abs(scale)), dtype=x.dtype, device=x.device),
         batch_shape
     )
     return y, log_det
@@ -58,7 +58,7 @@ def sigmoid_transform(x: torch.Tensor,
     """
     y = torch.sigmoid(x)
     log_det = sum_except_batch(
-        y * (1 - y),
+        torch.nn.functional.logsigmoid(x) + torch.nn.functional.logsigmoid(-x),
         batch_shape
     )
     return y, log_det
@@ -85,7 +85,7 @@ def negative_exponential_transform(x: torch.Tensor,
 def softplus_transform(x: torch.Tensor,
                        batch_shape: Union[Tuple[int, ...], torch.Size]) -> Tuple[torch.Tensor, torch.Tensor]:
     z = torch.nn.functional.softplus(x)
-    log_det = sum_except_batch(torch.sigmoid(z), batch_shape)
+    log_det = sum_except_batch(torch.nn.functional.logsigmoid(x), batch_shape)
     return z, log_det
 
 
@@ -134,22 +134,22 @@ def bound_parameter(x: torch.Tensor,
     """
     if low >= high:
         raise ValueError(f'Lower bound {low} is greater than or equal to high {high}')
-    if low == torch.inf:
+    if math.isinf(low) and low > 0:
         raise ValueError(f'Lower bound {low} cannot be infinity')
-    if high == -torch.inf:
+    if math.isinf(high) and high < 0:
         raise ValueError(f'Higher bound {high} cannot be negative infinity')
 
-    if low == -torch.inf and high < torch.inf:
+    if math.isinf(low) and not math.isinf(high):
         z, log_det_0 = negative_softplus_transform(x, batch_shape)
         y, log_det_1 = affine_transform(z, batch_shape, scale=(high - low), shift=low)
         log_det = log_det_0 + log_det_1
         return y, log_det
-    elif low > -torch.inf and high == torch.inf:
+    elif not math.isinf(low) and math.isinf(high):
         z, log_det_0 = softplus_transform(x, batch_shape)
         y, log_det_1 = affine_transform(z, batch_shape, scale=1.0, shift=low)
         log_det = log_det_0 + log_det_1
         return y, log_det
-    elif low > -torch.inf and high < torch.inf:
+    elif not math.isinf(low) and not math.isinf(high):
         return scaled_sigmoid_transform(x, batch_shape, low, high)
     else:
         raise ValueError

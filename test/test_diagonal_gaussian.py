@@ -1,7 +1,8 @@
+import pytest
 import torch
 import math
 
-from potentials.synthetic.gaussian.diagonal import DiagonalGaussian
+from potentials.synthetic.gaussian.diagonal import DiagonalGaussian, gaussian_potential_v2
 
 
 def test_basic():
@@ -11,3 +12,16 @@ def test_basic():
     true_log_prob = math.log(1 / (4 * math.pi)) - 5 / 8
     true_u = -true_log_prob
     assert torch.isclose(u, torch.tensor(true_u))
+
+
+@pytest.mark.parametrize('batch_shape', [(2,), (5,), (10,), (1, 3, 5)])
+@pytest.mark.parametrize('event_shape', [(2,), (5,), (10,), (1, 3, 5)])
+def test_gaussian_potential_v2(batch_shape, event_shape):
+    torch.manual_seed(0)
+    x = torch.randn(size=(*batch_shape, *event_shape))
+    mu = torch.randn(size=event_shape)
+    sigma = torch.randn(size=event_shape) ** 2
+
+    u = gaussian_potential_v2(x, mu, sigma)
+    assert u.shape == batch_shape
+    assert torch.isfinite(u).all()

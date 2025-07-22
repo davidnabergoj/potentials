@@ -3,12 +3,12 @@ from pathlib import Path
 
 import torch
 import torch.distributions as td
-from potentials.base import Potential
+from potentials.base import Posterior
 from potentials.utils import sum_except_batch
 import urllib.request
 
 
-class SyntheticItemResponseTheory(Potential):
+class SyntheticItemResponseTheory(Posterior):
     """
 
     Reference: https://github.com/stan-dev/example-models/blob/master/misc/irt/irt.data.json
@@ -55,20 +55,33 @@ class SyntheticItemResponseTheory(Potential):
 
         return -log_prob
 
+    def normalized_log_posterior_predictive_density(self, posterior_draws: torch.Tensor) -> torch.Tensor:
+        beta = posterior_draws[..., 0:400]
+        alpha = posterior_draws[..., 400:500]
+        delta = posterior_draws[..., 500]
+
+        probs = torch.sigmoid(alpha[..., self.student_index] - beta[..., self.response_index] + delta[..., None])
+        log_likelihood = torch.distributions.Bernoulli(probs=probs).log_prob(self.responses)
+        return log_likelihood.exp().mean(dim=1).log().mean()  # Take mean instead of sum
+
     @property
     def mean(self):
         path = Path(__file__).parent.parent / 'true_moments' / f'synthetic_item_response_theory_moments.pt'
         if path.exists():
-            return torch.load(path)[0]
+            return torch.load(path, weights_only=True)[0]
         return super().mean
 
     @property
     def second_moment(self):
         path = Path(__file__).parent.parent / 'true_moments' / f'synthetic_item_response_theory_moments.pt'
         if path.exists():
-            return torch.load(path)[1]
+            return torch.load(path, weights_only=True)[1]
         return super().second_moment
 
+    @property
+    def variance(self):
+        return self.second_moment - self.mean ** 2
+    
 if __name__ == '__main__':
     u = SyntheticItemResponseTheory()
     print(u.mean.shape)

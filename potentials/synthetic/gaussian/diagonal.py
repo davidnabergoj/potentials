@@ -4,12 +4,28 @@ import numpy as np
 import torch
 
 from potentials.base import Potential
-from potentials.utils import get_batch_shape, unsqueeze_to_batch, sum_except_batch
+from potentials.utils import get_batch_shape, unsqueeze_to_batch, sum_except_batch, sample_from_gamma
 
 
 def gaussian_potential(x: torch.Tensor, mu: torch.Tensor, sigma: torch.Tensor):
+    """
+    :param x: tensor with shape `(*batch_shape, *event_shape)`.
+    :param mu: tensor with shape `()`.
+    :param sigma: non-negative tensor with shape `()`.
+    """
     return 0.5 * ((x - mu.to(x)) / sigma.to(x)) ** 2 + 0.5 * math.log(2 * math.pi) + torch.log(sigma.to(x))
 
+def gaussian_potential_v2(x: torch.Tensor, mu: torch.Tensor, sigma: torch.Tensor):
+    """
+    :param x: tensor with shape `(*batch_shape, *event_shape)`.
+    :param mu: tensor with shape `event_shape`.
+    :param sigma: non-negative tensor with shape `event_shape`.
+
+    Note: it is possible to set event_shape == (), which corresponds to `gaussian_potential`.
+    """
+    batch_shape = get_batch_shape(x, mu.shape)
+    u = 0.5 * ((x - mu.to(x)) / sigma.to(x)) ** 2 + 0.5 * math.log(2 * math.pi) + torch.log(sigma.to(x))
+    return sum_except_batch(u, batch_shape)
 
 class DiagonalGaussian(Potential):
     def __init__(self, mu: torch.Tensor, sigma: torch.Tensor):
@@ -19,10 +35,7 @@ class DiagonalGaussian(Potential):
         self.register_buffer('sigma', sigma)
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
-        batch_shape = get_batch_shape(x, self.event_shape)
-        mu = unsqueeze_to_batch(self.mu, batch_shape)
-        sigma = unsqueeze_to_batch(self.sigma, batch_shape)
-        return sum_except_batch(gaussian_potential(x, mu, sigma), batch_shape)
+        return gaussian_potential_v2(x, self.mu, self.sigma)
 
     def sample(self, batch_shape: Union[torch.Size, Tuple[int]]) -> torch.Tensor:
         mu = unsqueeze_to_batch(self.mu, batch_shape)
@@ -54,8 +67,8 @@ class DiagonalGaussian0(DiagonalGaussian):
         if isinstance(event_shape, int):
             event_shape = (event_shape,)
         mu = torch.zeros(event_shape)
-        rng = np.random.RandomState(seed=seed)
-        eigenvalues = torch.as_tensor(1 / np.sort(rng.gamma(shape=gamma_shape, scale=1.0, size=event_shape)))
+        tmp = sample_from_gamma(event_shape, gamma_shape, 1.0, seed=seed)
+        eigenvalues = (1 / torch.sort(tmp)[0]).to(mu)
         super().__init__(mu, eigenvalues)
 
 
