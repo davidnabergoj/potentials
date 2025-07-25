@@ -7,7 +7,7 @@ import urllib.request
 import zipfile
 import torch.distributions as td
 
-from potentials.transformations import bound_parameter
+from potentials.transformations import bound_parameter, bound_positive
 
 
 def load_german_credit():
@@ -270,3 +270,95 @@ class SparseGermanCredit(Posterior):
         logits = self._compute_likelihood_parameters(posterior_draws)
         log_likelihood = td.Bernoulli(logits=logits).log_prob(self.labels)
         return log_likelihood.exp().mean(dim=1).log().mean()  # Take mean instead of sum
+
+
+class SparseGermanCreditMissingData(Posterior):
+    """
+    tau ~ Gamma(0.5, 0.5)
+    beta[i] ~ N(0, 1)
+    lambda[i] ~ Gamma(0.5, 0.5)
+
+    For each missing entry in columns 1, 3, 9 of the first 100 rows:
+    x_ij ~ Normal(mu_ij, 1),  mu_ij ~ Normal(0, 1)
+
+    Total parameters: 1 + 25 + 25 + 300 = 351
+    """
+
+    def __init__(self, n_missing_rows=100):
+        self.n_missing_rows = n_missing_rows
+        self.full_features, self.labels = load_german_credit()
+
+        self.features = self.full_features.clone()
+        self.features[:self.n_missing_rows, [1, 3, 9]] = torch.nan
+
+        super().__init__((51 + self.n_missing_rows * 3,))  # tau + beta + lambda + 300 mus
+
+    def compute(self, x: torch.Tensor) -> torch.Tensor:
+        assert x.shape[-1] == self.event_shape[0]
+        batch_shape = x.shape[:-1]
+
+        unnormalized_tau = x[..., 0]
+        beta = x[..., 1:26]
+        unconstrained_lambda = x[..., 26:51]
+        mu_c1 = x[..., 51:51+self.n_missing_rows]
+        mu_c3 = x[..., 51+self.n_missing_rows:51+self.n_missing_rows*2]
+        mu_c9 = x[..., 51+self.n_missing_rows*2:51+self.n_missing_rows*3]
+
+        # Transform positive-only variables
+        tau, log_det_tau = bound_positive(unnormalized_tau, batch_shape)
+        lmbd, log_det_lmbd = bound_positive(unconstrained_lambda, batch_shape)
+
+        log_det = log_det_tau + log_det_lmbd  # No transform on mu_* (real)
+
+        # Priors
+        log_prior = (
+            td.Gamma(0.5, 0.5).log_prob(tau)
+            + td.Gamma(0.5, 0.5).log_prob(lmbd).sum(dim=-1)
+            + td.Normal(0.0, 1.0).log_prob(beta).sum(dim=-1)
+            + td.Normal(0.0, 1.0).log_prob(mu_c1).sum(dim=-1)
+            + td.Normal(0.0, 1.0).log_prob(mu_c3).sum(dim=-1)
+            + td.Normal(0.0, 1.0).log_prob(mu_c9).sum(dim=-1)
+        )
+
+        # Impute missing entries
+        imputed_features = self.features.unsqueeze(0).expand(
+            x.shape[0], -1, -1).clone().to(x)  # (n_chains, N, D)
+        imputed_features[..., :self.n_missing_rows, 1] = mu_c1
+        imputed_features[..., :self.n_missing_rows, 3] = mu_c3
+        imputed_features[..., :self.n_missing_rows, 9] = mu_c9
+
+        # Bernoulli likelihood for observed labels
+        bernoulli_logits = torch.einsum(
+            '...nd,...d->...n',
+            imputed_features,  # (..., N, D)
+            tau.view(*batch_shape, 1) * beta * lmbd  # (..., D)
+        )
+
+        log_likelihood_bernoulli = td.Bernoulli(
+            logits=bernoulli_logits).log_prob(self.labels).sum(dim=-1)
+
+        # Normal likelihoods for imputed values
+        def observed_column(col_idx, mu):
+            obs = imputed_features[..., :self.n_missing_rows, col_idx]
+            return td.Independent(
+                td.Normal(loc=mu, scale=1.0),
+                reinterpreted_batch_ndims=1
+            ).log_prob(obs).sum(dim=-1)
+
+        log_likelihood_c1 = observed_column(1, mu_c1)
+        log_likelihood_c3 = observed_column(3, mu_c3)
+        log_likelihood_c9 = observed_column(9, mu_c9)
+
+        log_likelihood = (
+            log_likelihood_bernoulli
+            + log_likelihood_c1
+            + log_likelihood_c3
+            + log_likelihood_c9
+        )
+
+        log_posterior = log_likelihood + log_prior + log_det
+        return -log_posterior
+
+    @property
+    def variance(self):
+        return self.second_moment - self.mean ** 2
