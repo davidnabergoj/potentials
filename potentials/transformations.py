@@ -153,3 +153,12 @@ def bound_parameter(x: torch.Tensor,
         return scaled_sigmoid_transform(x, batch_shape, low, high)
     else:
         raise ValueError
+
+
+def bound_positive(x: torch.Tensor, batch_shape: Union[Tuple[int, ...], torch.Size]):
+    return bound_parameter(
+        x=x,
+        batch_shape=batch_shape,
+        low=0.0,
+        high=torch.inf
+    )
