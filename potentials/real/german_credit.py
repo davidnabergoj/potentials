@@ -42,12 +42,17 @@ class GermanCredit(Posterior):
     beta[i] ~ N(0, 1)
     """
 
-    def __init__(self, reduced_dataset: bool = False):
+    def __init__(self, n_data: int = None):
         self.features, self.labels = load_german_credit()
-        if reduced_dataset:
-            n_data = 50
+
+        if n_data is not None:
+            if not 0 < n_data <= len(self.labels):
+                raise ValueError(
+                    "Number of used observations must be between zero and the number of total observations"
+                )
             self.features = self.features[:n_data]
             self.labels = self.labels[:n_data]
+        
         super().__init__((26,))
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
@@ -151,8 +156,17 @@ class SparseGermanCredit(Posterior):
     lambda[i] ~ Gamma(0.5, 0.5)
     """
 
-    def __init__(self):
+    def __init__(self, n_data: int = None):
         self.features, self.labels = load_german_credit()
+
+        if n_data is not None:
+            if not 0 < n_data <= len(self.labels):
+                raise ValueError(
+                    "Number of used observations must be between zero and the number of total observations"
+                )
+            self.features = self.features[:n_data]
+            self.labels = self.labels[:n_data]
+
         super().__init__((51,))
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
