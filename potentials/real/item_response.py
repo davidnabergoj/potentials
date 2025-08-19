@@ -69,14 +69,16 @@ class SyntheticItemResponseTheory(Posterior):
         path = Path(__file__).parent.parent / 'true_moments' / f'synthetic_item_response_theory_moments.pt'
         if path.exists():
             return torch.load(path, weights_only=True)[0]
-        return super().mean
+        else:
+            raise ValueError("Moment file not found")
 
     @property
     def second_moment(self):
         path = Path(__file__).parent.parent / 'true_moments' / f'synthetic_item_response_theory_moments.pt'
         if path.exists():
             return torch.load(path, weights_only=True)[1]
-        return super().second_moment
+        else:
+            raise ValueError("Moment file not found")
 
     @property
     def variance(self):

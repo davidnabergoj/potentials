@@ -64,10 +64,8 @@ class EightSchools(Posterior):
             f'eight_schools_moments.pt'
         if path.exists():
             return torch.load(path, weights_only=True)[0]
-        return torch.tensor([
-            -9.7772e-03, 4.4717e+00, -1.1302e-02, -1.0023e-01, 3.2246e-02,
-            1.6387e-01, 6.1710e-02, -4.1238e-04, 2.4907e-02, 1.5544e-01
-        ])
+        else:
+            raise ValueError("Moment file not found")
 
     @property
     def second_moment(self):
@@ -75,10 +73,8 @@ class EightSchools(Posterior):
             f'eight_schools_moments.pt'
         if path.exists():
             return torch.load(path, weights_only=True)[1]
-        return torch.tensor([
-            1.1949e+00, 4.2651e+01, 3.8306e-01, 4.1782e-01, 6.7065e-01,
-            4.7906e-01, 5.7163e-01, 5.3950e-01, 6.4698e-01, 7.1619e-01
-        ])
+        else:
+            raise ValueError("Moment file not found")
 
     @property
     def variance(self):
