@@ -13,7 +13,7 @@ from potentials.transformations import bound_parameter
 
 # https://www.tensorflow.org/probability/examples/Multilevel_Modeling_Primer
 
-def load_radon(n_counties: int):
+def load_radon(n_counties: int, n_data: int = None):
     # Using Minnesota data
     data_path = Path(__file__).parent / "downloaded/radon_mn.json.zip"
     if not data_path.exists():
@@ -39,15 +39,42 @@ def load_radon(n_counties: int):
                     county_idx = torch.as_tensor(county_idx)
 
                     mask = county_idx <= n_counties
-                    return floor[mask], log_radon[mask], log_uranium[mask], county_idx[mask]
+
+                    floor = floor[mask]
+                    log_radon = log_radon[mask]
+                    log_uranium = log_uranium[mask]
+                    county_idx = county_idx[mask]
+
+                    # Handle smaller data
+                    if n_data is not None:
+                        if n_data > len(floor):
+                            raise ValueError(
+                                "New dataset cannot have more entries than the original"
+                            )
+                        floor = floor[:n_data]
+                        log_radon = log_radon[:n_data]
+                        log_uranium = log_uranium[:n_data]
+                        county_idx = county_idx[:n_data]
+
+                    return floor, log_radon, log_uranium, county_idx
 
 
 class RadonVaryingSlopes(StructuredPotential):
-    def __init__(self, n_counties: int = 85):
-        super().__init__(event_shape=(4 + n_counties,))
-        self.floor, self.log_radon, self.log_uranium, self.county_idx = load_radon(
-            n_counties=n_counties)
+    def __init__(self, n_data: int = None):
+        n_counties = 85
+        (
+            self.floor,
+            self.log_radon,
+            self.log_uranium,
+            self.county_idx
+        ) = load_radon(
+            n_counties=n_counties,
+            n_data=n_data
+        )
         self.n_counties = n_counties
+        self._modified = n_data is not None
+        super().__init__(event_shape=(4 + n_counties,))
+
 
     def compute(self, model_params):
         # Extract parameters
@@ -101,6 +128,8 @@ class RadonVaryingSlopes(StructuredPotential):
 
     @property
     def mean(self):
+        if self._modified:
+            raise ValueError("Reference mean unavailable for modified dataset")
         path = Path(__file__).parent.parent / \
             'true_moments' / f'radon_slopes_moments.pt'
         if path.exists():
@@ -110,6 +139,8 @@ class RadonVaryingSlopes(StructuredPotential):
 
     @property
     def second_moment(self):
+        if self._modified:
+            raise ValueError("Reference second moment unavailable for modified dataset")
         path = Path(__file__).parent.parent / \
             'true_moments' / f'radon_slopes_moments.pt'
         if path.exists():
@@ -123,11 +154,20 @@ class RadonVaryingSlopes(StructuredPotential):
 
 
 class RadonVaryingIntercepts(StructuredPotential):
-    def __init__(self, n_counties: int = 85):
-        super().__init__(event_shape=(4 + n_counties,))
-        self.floor, self.log_radon, self.log_uranium, self.county_idx = load_radon(
-            n_counties=n_counties)
+    def __init__(self, n_data: int = None):
+        n_counties = 85
+        (
+            self.floor,
+            self.log_radon,
+            self.log_uranium,
+            self.county_idx
+        ) = load_radon(
+            n_counties=n_counties,
+            n_data=n_data
+        )
         self.n_counties = n_counties
+        self._modified = n_data is not None
+        super().__init__(event_shape=(4 + n_counties,))
 
     def compute(self, model_params):
         # Extract parameters
@@ -181,6 +221,8 @@ class RadonVaryingIntercepts(StructuredPotential):
 
     @property
     def mean(self):
+        if self._modified:
+            raise ValueError("Reference mean unavailable for modified dataset")
         path = Path(__file__).parent.parent / 'true_moments' / \
             f'radon_intercepts_moments.pt'
         if path.exists():
@@ -190,6 +232,8 @@ class RadonVaryingIntercepts(StructuredPotential):
 
     @property
     def second_moment(self):
+        if self._modified:
+            raise ValueError("Reference second moment unavailable for modified dataset")
         path = Path(__file__).parent.parent / 'true_moments' / \
             f'radon_intercepts_moments.pt'
         if path.exists():
@@ -203,11 +247,20 @@ class RadonVaryingIntercepts(StructuredPotential):
 
 
 class RadonVaryingInterceptsAndSlopes(StructuredPotential, Posterior):
-    def __init__(self, n_counties: int = 85):
-        super().__init__(event_shape=(5 + 2 * n_counties,))
-        self.floor, self.log_radon, self.log_uranium, self.county_idx = load_radon(
-            n_counties=n_counties)
+    def __init__(self, n_data: int = None):
+        n_counties = 85
+        (
+            self.floor,
+            self.log_radon,
+            self.log_uranium,
+            self.county_idx
+        ) = load_radon(
+            n_counties=n_counties,
+            n_data=n_data
+        )
         self.n_counties = n_counties
+        self._modified = n_data is not None
+        super().__init__(event_shape=(5 + 2 * n_counties,))
 
     def compute(self, model_params):
         # Extract parameters
@@ -277,6 +330,8 @@ class RadonVaryingInterceptsAndSlopes(StructuredPotential, Posterior):
 
     @property
     def mean(self):
+        if self._modified:
+            raise ValueError("Reference mean unavailable for modified dataset")
         path = Path(__file__).parent.parent / 'true_moments' / \
             f'radon_intercepts_slopes_moments.pt'
         if path.exists():
@@ -286,6 +341,8 @@ class RadonVaryingInterceptsAndSlopes(StructuredPotential, Posterior):
 
     @property
     def second_moment(self):
+        if self._modified:
+            raise ValueError("Reference second moment unavailable for modified dataset")
         path = Path(__file__).parent.parent / 'true_moments' / \
             f'radon_intercepts_slopes_moments.pt'
         if path.exists():
@@ -337,11 +394,18 @@ class RadonVaryingInterceptsAndSlopes(StructuredPotential, Posterior):
 
 
 if __name__ == '__main__':
-    for target in [RadonVaryingSlopes(), RadonVaryingIntercepts(), RadonVaryingInterceptsAndSlopes()]:
-        print(target.mean.shape)
-        print(target.second_moment.shape)
-        print(target.mean.isfinite().all())
-        print(target.second_moment.isfinite().all())
+    _n_data = 250
+    for target in [
+        RadonVaryingSlopes(n_data=_n_data), 
+        RadonVaryingIntercepts(n_data=_n_data), 
+        RadonVaryingInterceptsAndSlopes(n_data=_n_data)
+    ]:
+        print(f'{len(torch.unique(target.county_idx)) = }')
+
+        # print(target.mean.shape)
+        # print(target.second_moment.shape)
+        # print(target.mean.isfinite().all())
+        # print(target.second_moment.isfinite().all())
 
         torch.manual_seed(0)
         x = torch.randn(size=(5, *target.event_shape))
