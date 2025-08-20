@@ -52,7 +52,8 @@ class GermanCredit(Posterior):
                 )
             self.features = self.features[:n_data]
             self.labels = self.labels[:n_data]
-        
+            
+        self._modified = n_data is not None
         super().__init__((26,))
 
     def compute(self, x: torch.Tensor) -> torch.Tensor:
@@ -89,6 +90,8 @@ class GermanCredit(Posterior):
 
     @property
     def mean(self):
+        if self._modified:
+            raise ValueError("Reference mean unavailable for modified dataset")
         path = Path(__file__).parent.parent / 'true_moments' / \
             f'german_credit_moments.pt'
         if path.exists():
@@ -98,6 +101,8 @@ class GermanCredit(Posterior):
 
     @property
     def second_moment(self):
+        if self._modified:
+            raise ValueError("Reference second moment unavailable for modified dataset")
         path = Path(__file__).parent.parent / 'true_moments' / \
             f'german_credit_moments.pt'
         if path.exists():
@@ -155,6 +160,7 @@ class SparseGermanCredit(Posterior):
                 )
             self.features = self.features[:n_data]
             self.labels = self.labels[:n_data]
+        self._modified = n_data is not None
 
         super().__init__((51,))
 
@@ -204,6 +210,8 @@ class SparseGermanCredit(Posterior):
 
     @property
     def mean(self):
+        if self._modified:
+            raise ValueError("Reference mean unavailable for modified dataset")
         path = Path(__file__).parent.parent / 'true_moments' / \
             f'sparse_german_credit_moments.pt'
         if path.exists():
@@ -213,6 +221,8 @@ class SparseGermanCredit(Posterior):
 
     @property
     def second_moment(self):
+        if self._modified:
+            raise ValueError("Reference second moment unavailable for modified dataset")
         path = Path(__file__).parent.parent / 'true_moments' / \
             f'sparse_german_credit_moments.pt'
         if path.exists():
