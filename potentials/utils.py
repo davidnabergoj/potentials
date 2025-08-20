@@ -118,3 +118,86 @@ def plot_2d(potential_2d,
     )
     ax.set_xlabel("Dim 0")
     ax.set_ylabel("Dim 1")
+
+
+def reduce_two_key_dataset(key1_index: torch.Tensor,
+                           key2_index: torch.Tensor,
+                           data: torch.Tensor,
+                           new_n_unique_key1_ids: int,
+                           reindex_key2: bool = False):
+    """
+    Processes a dataset with entries of the form (key1, key2, data).
+    The dataset should have `n` unique key1 values, `m` unique key2 values, and `k` data points.
+    The function reduces the number of unique key1 values to `new_unique_key1_counts`, whilst
+     also removing the associated data values.
+
+    :param torch.Tensor key1_values: values for key1 objects, indexed from 0 (inclusive) to n (exclusive).
+    :param torch.Tensor key2_values: values for key2 objects, indexed from 0 (inclusive) to m (exclusive).
+    :param bool reindex_key2: if True, reindexes key2, associated with reduced key1 entries.
+    :return: (tuple with 6 elements) new key1 index, new key2 index, new data, number of new key1 ids, 
+     number of new key2 ids, number of new data entries.
+    """
+    n_key1_ids = len(torch.unique(key1_index))
+
+    if new_n_unique_key1_ids == n_key1_ids:
+        n_key2_ids = len(torch.unique(key2_index))
+        return (
+            key1_index,
+            key2_index,
+            data,
+            n_key1_ids,
+            n_key2_ids,
+            len(data)
+        )
+    elif new_n_unique_key1_ids > n_key1_ids:
+        raise ValueError(
+            "Cannot have more IDs than the original dataset"
+        )
+
+    _count = [0] * n_key1_ids
+    _kept = []
+    for i in range(len(key1_index)):
+        if _count[key1_index[i]] < new_n_unique_key1_ids:
+            _count[key1_index[i]] += 1
+            _kept.append(i)
+    _kept = torch.tensor(_kept, dtype=torch.long)
+
+    # Modify data
+    new_data = data[_kept]
+    new_n_data = len(new_data)
+
+    # Modify key1 index
+    new_key1_index = key1_index[_kept]
+    
+    # Modify key2 index
+    reduced_key2_index = key2_index[_kept]
+
+    if not reindex_key2:
+        new_n_key2_ids = len(torch.unique(reduced_key2_index))
+        return (
+            new_key1_index,
+            reduced_key2_index,
+            new_data,
+            n_key1_ids,
+            new_n_key2_ids,
+            new_n_data
+        )
+
+    reduced_key2_ids = torch.unique(reduced_key2_index)
+    new_key2_ids = torch.arange(len(reduced_key2_ids))
+
+    replacement = dict(zip(reduced_key2_ids.tolist(), new_key2_ids.tolist()))
+    for i in range(len(reduced_key2_index)):
+        reduced_key2_index[i] = replacement[int(reduced_key2_index[i])]
+    
+    new_key2_index = reduced_key2_index
+    new_n_key2_ids = len(new_key2_ids)
+
+    return (
+        new_key1_index,
+        new_key2_index,
+        new_data,
+        n_key1_ids,
+        new_n_key2_ids,
+        new_n_data
+    )
