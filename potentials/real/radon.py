@@ -319,7 +319,6 @@ class RadonVaryingInterceptsAndSlopes(Posterior1D):
 
     def extract_parameters(self, unconstrained, return_log_probs=True):
         # (mu_a, log_sigma_a, mu_b, log_sigma_b, log_sigma_y, a, b)
-        batch_shape = unconstrained.shape[:-1]
         out, log_det = self.posterior_parameters.constrain(
             unconstrained
         )

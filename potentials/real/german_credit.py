@@ -1,3 +1,4 @@
+from typing import Dict
 import numpy as np
 
 from potentials.real.posterior_base import Posterior1D
@@ -7,6 +8,7 @@ import urllib.request
 import zipfile
 import torch.distributions as td
 
+from potentials.real.posterior_util import Parameter1D, ParameterSet1D
 from potentials.transformations import bound_parameter, bound_positive
 
 
@@ -52,41 +54,51 @@ class GermanCredit(Posterior1D):
                 )
             self.features = self.features[:n_data]
             self.labels = self.labels[:n_data]
-            
+
         self._modified = n_data is not None
-        super().__init__((26,))
-
-    def compute(self, x: torch.Tensor) -> torch.Tensor:
-        assert x.shape[-1] == 26
-        batch_shape = x.shape[:-1]
-
-        beta = x[..., 1:]
-        unnormalized_tau = x[..., 0]
-        tau, log_det_tau = bound_parameter(
-            unnormalized_tau,
-            batch_shape,
-            low=0.0,
-            high=torch.inf
-        )
-        log_det = log_det_tau
-
-        # Compute the log prior
-        log_prior = torch.add(
-            td.Gamma(0.5, 0.5).log_prob(tau),
-            td.Normal(0.0, 1.0).log_prob(beta).sum(dim=-1),
+        super().__init__(
+            event_shape=(26,),
+            posterior_parameters=ParameterSet1D({
+                'tau': Parameter1D(1, 'positive'),
+                'beta': Parameter1D(25),
+            })
         )
 
-        # Compute the log likelihood
+    def extract_parameters(self,
+                           unconstrained: torch.Tensor,
+                           return_log_probs: bool = True) -> Dict[str, torch.Tensor]:
+        # (mu_a, log_sigma_a, log_sigma_y, a, b)
+        out, log_det = self.posterior_parameters.constrain(
+            unconstrained
+        )
+
+        # Compute prior probabilities
+        if return_log_probs:
+            log_prob_tau = td.Gamma(0.5, 0.5).log_prob(out['tau'])[..., 0]
+            log_prob_beta = td.Normal(0.0, 1.0).log_prob(
+                out['beta']
+            ).sum(dim=-1)
+
+            out['log_prior'] = (
+                log_prob_tau
+                + log_prob_beta
+                + log_det
+            )
+
+        return out
+
+    def likelihood_object(self,
+                          extracted: Dict[str, torch.Tensor]):
+        batch_shape = extracted['beta'].shape[:-1]
         logits = torch.einsum(
             'nf,...f->...nf',
             self.features,
-            tau.view(*batch_shape, 1) * beta
+            extracted['tau'].view(*batch_shape, 1) * extracted['beta']
         ).sum(dim=-1)  # shape = (*batch_shape, features)
-        log_likelihood = td.Bernoulli(
-            logits=logits
-        ).log_prob(self.labels).sum(dim=-1)
-        log_probability = log_likelihood + log_prior + log_det
-        return -(log_probability + log_det_tau)
+        return td.Independent(td.Bernoulli(logits=logits), 1)
+
+    def compute_likelihood(self, extracted):
+        return self.likelihood_object(extracted).log_prob(self.labels)
 
     @property
     def mean(self):
@@ -102,7 +114,8 @@ class GermanCredit(Posterior1D):
     @property
     def second_moment(self):
         if self._modified:
-            raise ValueError("Reference second moment unavailable for modified dataset")
+            raise ValueError(
+                "Reference second moment unavailable for modified dataset")
         path = Path(__file__).parent.parent / 'true_moments' / \
             f'german_credit_moments.pt'
         if path.exists():
@@ -113,34 +126,6 @@ class GermanCredit(Posterior1D):
     @property
     def variance(self):
         return self.second_moment - self.mean ** 2
-
-    def _compute_likelihood_parameters(self, x: torch.Tensor):
-        assert x.shape[-1] == 26
-        batch_shape = x.shape[:-1]
-        beta = x[..., 1:]
-        unnormalized_tau = x[..., 0]
-        tau, _ = bound_parameter(
-            unnormalized_tau,
-            batch_shape,
-            low=0.0,
-            high=torch.inf
-        )
-        logits = torch.einsum(
-            'nf,...f->...nf',
-            self.features,
-            tau.view(*batch_shape, 1) * beta
-        ).sum(dim=-1)  # shape = (*batch_shape, features)
-        return logits
-
-    def posterior_predictive_draws(self, posterior_draws: torch.Tensor, n_draws: int = 100) -> torch.Tensor:
-        logits = self._compute_likelihood_parameters(posterior_draws)
-        dist = td.Bernoulli(logits=logits)
-        return dist.sample((n_draws,))
-
-    def normalized_log_posterior_predictive_density(self, posterior_draws: torch.Tensor):
-        logits = self._compute_likelihood_parameters(posterior_draws)
-        log_likelihood = td.Bernoulli(logits=logits).log_prob(self.labels)
-        return log_likelihood.exp().mean(dim=-1).log().mean()  # Take mean instead of sum
 
 
 class SparseGermanCredit(Posterior1D):
@@ -162,51 +147,58 @@ class SparseGermanCredit(Posterior1D):
             self.labels = self.labels[:n_data]
         self._modified = n_data is not None
 
-        super().__init__((51,))
-
-    def compute(self, x: torch.Tensor) -> torch.Tensor:
-        assert x.shape[-1] == 51
-        batch_shape = x.shape[:-1]
-
-        beta = x[..., 1:26]
-        unnormalized_tau = x[..., 0]
-        unconstrained_lambda = x[..., 26:]
-
-        tau, log_det_tau = bound_parameter(
-            unnormalized_tau,
-            batch_shape,
-            low=0.0,
-            high=torch.inf
+        super().__init__(
+            event_shape=(51,),
+            posterior_parameters=ParameterSet1D({
+                'tau': Parameter1D(1, 'positive'),
+                'beta': Parameter1D(25),
+                'lambda': Parameter1D(25, 'positive')
+            })
         )
-        lmbd, log_det_lmbd = bound_parameter(
-            unconstrained_lambda,
-            batch_shape,
-            low=0.0,
-            high=torch.inf
-        )
-        log_det = log_det_tau + log_det_lmbd
 
-        # Compute the log prior
-        log_prior = torch.add(
-            td.Gamma(0.5, 0.5).log_prob(tau),
-            torch.add(
-                td.Gamma(0.5, 0.5).log_prob(lmbd).sum(dim=-1),
-                td.Normal(0.0, 1.0).log_prob(beta).sum(dim=-1)
+    def extract_parameters(self,
+                           unconstrained: torch.Tensor,
+                           return_log_probs: bool = True) -> Dict[str, torch.Tensor]:
+        # (mu_a, log_sigma_a, log_sigma_y, a, b)
+        out, log_det = self.posterior_parameters.constrain(
+            unconstrained
+        )
+
+        # Compute prior probabilities
+        if return_log_probs:
+            log_prob_tau = td.Gamma(0.5, 0.5).log_prob(out['tau'])[..., 0]
+            log_prob_beta = td.Normal(0.0, 1.0).log_prob(
+                out['beta']
+            ).sum(dim=-1)
+            log_prob_lambda = td.Gamma(0.5, 0.5).log_prob(
+                out['lambda']
+            ).sum(dim=-1)
+
+            out['log_prior'] = (
+                log_prob_tau
+                + log_prob_beta
+                + log_prob_lambda
+                + log_det
             )
-        )
 
-        # Compute the log likelihood
+        return out
+
+    def likelihood_object(self,
+                          extracted: Dict[str, torch.Tensor]):
+        batch_shape = extracted['beta'].shape[:-1]
         logits = torch.einsum(
             'nf,...f->...nf',
             self.features,
-            tau.view(*batch_shape, 1) * beta * lmbd
+            (
+                extracted['tau'].view(*batch_shape, 1)
+                * extracted['beta']
+                * extracted['lambda']
+            )
         ).sum(dim=-1)  # shape = (*batch_shape, features)
-        log_likelihood = td.Bernoulli(
-            logits=logits
-        ).log_prob(self.labels).sum(dim=-1)
-        log_probability = log_likelihood + log_prior + log_det
+        return td.Independent(td.Bernoulli(logits=logits), 1)
 
-        return -log_probability
+    def compute_likelihood(self, extracted):
+        return self.likelihood_object(extracted).log_prob(self.labels)
 
     @property
     def mean(self):
@@ -222,7 +214,8 @@ class SparseGermanCredit(Posterior1D):
     @property
     def second_moment(self):
         if self._modified:
-            raise ValueError("Reference second moment unavailable for modified dataset")
+            raise ValueError(
+                "Reference second moment unavailable for modified dataset")
         path = Path(__file__).parent.parent / 'true_moments' / \
             f'sparse_german_credit_moments.pt'
         if path.exists():

@@ -1,10 +1,12 @@
 import json
+from typing import Dict
 import urllib.request
 from pathlib import Path
 
 import torch
 import torch.distributions as td
 from potentials.real.posterior_base import Posterior1D
+from potentials.real.posterior_util import Parameter1D, ParameterSet1D
 from potentials.transformations import bound_parameter
 from potentials.utils import sum_except_batch
 
@@ -17,8 +19,6 @@ class EightSchools(Posterior1D):
     """
 
     def __init__(self):
-        super().__init__(event_shape=(10,))
-
         download_url = "https://raw.githubusercontent.com/stan-dev/example-models/master/misc/eight_schools/eight_schools.data.json"
         data_dir = Path(__file__).parent / 'downloaded'
         data_file = data_dir / "eight_schools.data.json"
@@ -31,32 +31,66 @@ class EightSchools(Posterior1D):
         self.measurements = torch.tensor(data['y'], dtype=torch.float)
         self.scales = torch.tensor(data['sigma'], dtype=torch.float)  # (8,)
 
-    def compute(self, x: torch.Tensor) -> torch.Tensor:
-        # (mu, log_tau, theta_prime)
-        batch_shape = x.shape[:-1]
-        mu = x[..., 0]
-        log_tau = x[..., 1]
-        theta_prime = x[..., 2:]
+        super().__init__(
+            event_shape=(10,),
+            posterior_parameters=ParameterSet1D({
+                'mu': Parameter1D(1),
+                'tau': Parameter1D(1, 'positive'),
+                'theta_prime': Parameter1D(8),
+            })
+        )
 
-        tau, log_det_tau = bound_parameter(
-            log_tau, batch_shape, low=0.0, high=torch.inf)
-        log_det = log_det_tau
+    def extract_parameters(self,
+                           unconstrained: torch.Tensor,
+                           return_log_probs: bool = True) -> Dict[str, torch.Tensor]:
+        # (mu_a, log_sigma_a, log_sigma_y, a, b)
+        out, log_det = self.posterior_parameters.constrain(
+            unconstrained
+        )
 
-        theta = mu[..., None] + tau[..., None] * theta_prime
+        # Compute prior probabilities
+        if return_log_probs:
+            log_prob_mu = td.Normal(
+                loc=0.0,
+                scale=10.0
+            ).log_prob(out['mu'])[..., 0]
+            log_prob_tau = td.LogNormal(
+                loc=5.0,
+                scale=1.0
+            ).log_prob(out['tau'])[..., 0]
+            log_prob_theta_prime = td.Normal(
+                loc=0.0,
+                scale=1.0
+            ).log_prob(
+                out['theta_prime']
+            ).sum(dim=-1)
 
-        log_prob_mu = td.Normal(loc=0.0, scale=10.0).log_prob(mu)
-        log_prob_tau = td.LogNormal(loc=5.0, scale=1.0).log_prob(tau)
-        log_prob_theta_prime = sum_except_batch(
-            td.Normal(loc=0.0, scale=1.0).log_prob(theta_prime), batch_shape)
-        log_prior = log_prob_mu + log_prob_tau + log_prob_theta_prime
+            out['log_prior'] = (
+                log_prob_mu
+                + log_prob_tau
+                + log_prob_theta_prime
+                + log_det
+            )
 
-        log_likelihood = td.Independent(
+        return out
+
+    def likelihood_object(self,
+                          extracted: Dict[str, torch.Tensor]):
+        theta = (
+            extracted['mu']
+            + (
+                extracted['tau']
+                * extracted['theta_prime']
+            )
+        )
+
+        return td.Independent(
             td.Normal(loc=theta, scale=self.scales),
             reinterpreted_batch_ndims=1
-        ).log_prob(self.measurements)
+        )
 
-        log_prob = log_likelihood + log_prior + log_det
-        return - log_prob
+    def compute_likelihood(self, extracted):
+        return self.likelihood_object(extracted).log_prob(self.measurements)
 
     @property
     def mean(self):

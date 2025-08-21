@@ -12,6 +12,7 @@ from typing import Dict, List, Tuple
 class Posterior1D(Potential):
     def __init__(self, event_shape, posterior_parameters: ParameterSet1D):
         super().__init__(event_shape)
+        # TODO infer event shape from posterior parameters
         self.posterior_parameters = posterior_parameters
 
     @property
