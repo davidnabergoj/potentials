@@ -20,7 +20,7 @@ class Rosenbrock(Potential):
                 self.scale * (x_flat[..., first_term_mask] ** 2 - x_flat[..., second_term_mask]) ** 2,
                 (x_flat[..., first_term_mask] - 1) ** 2
             ),
-            dim=1
+            dim=-1
         )
 
     @property

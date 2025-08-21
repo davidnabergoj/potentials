@@ -5,10 +5,13 @@ from potentials.synthetic.gaussian_mixture import DoubleGaussian
 
 def test_double_gaussian():
     n_dim = 10
-    pot = DoubleGaussian(n_dim).cuda()
+    u = DoubleGaussian(n_dim).cuda()
 
     x = torch.randn(n_dim)
-    pot(x)
+    ret = u(x)
+    assert torch.all(torch.isfinite(ret))
 
-    x = pot.sample((11, 3))
-    pot(x)
+    x = u.sample((11, 3))
+    ret = u(x)
+    assert torch.all(torch.isfinite(ret))
+    assert torch.all(torch.isfinite(x))

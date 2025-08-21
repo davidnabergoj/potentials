@@ -12,5 +12,4 @@ def test_basic(batch_shape):
 
     u = potential(x0)
     assert u.shape == batch_shape
-    assert torch.all(~torch.isnan(u))
-    assert torch.all(~torch.isinf(u))
+    assert torch.all(torch.isfinite(u))
