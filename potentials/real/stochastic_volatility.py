@@ -1,11 +1,13 @@
 import pathlib
 from pathlib import Path
 import csv
+from typing import Dict
 
 import torch
 import torch.distributions as td
 
 from potentials.real.posterior_base import Posterior1D
+from potentials.real.posterior_util import Parameter1D, ParameterSet1D
 from potentials.synthetic.gaussian.diagonal import gaussian_potential
 from potentials.transformations import bound_parameter
 from potentials.utils import sum_except_batch
@@ -32,111 +34,117 @@ class StochasticVolatilityModel(Posterior1D):
         with open(data_path, 'r') as f:
             reader = csv.reader(f, delimiter=',')
             next(reader)  # skip header
-            closing_prices = torch.tensor([float(row[4]) for row in reader], dtype=torch.float)
+            closing_prices = torch.tensor(
+                [float(row[4]) for row in reader], dtype=torch.float)
 
         self.measurements: torch.Tensor = closing_prices[:n_measurements]
         self.n_measurements = len(self.measurements)
-        super().__init__(event_shape=(self.n_measurements + 3,))
+        super().__init__(
+            event_shape=(self.n_measurements + 3,),
+            posterior_parameters=ParameterSet1D({
+                'z': Parameter1D(self.n_measurements),
+                'sigma': Parameter1D(1, 'positive'),
+                'mu': Parameter1D(1, 'positive'),
+                'phi_prime': Parameter1D(1, (0, 1)),
+            })
+        )
 
-    def compute(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Compute the negative log probability density of the model.
+    def extract_parameters(self,
+                           unconstrained: torch.Tensor,
+                           return_log_probs: bool = True) -> Dict[str, torch.Tensor]:
+        # (mu_a, log_sigma_a, log_sigma_y, a, b)
+        out, log_det = self.posterior_parameters.constrain(
+            unconstrained
+        )
 
-        :param torch.Tensor x: tensor with shape `(self.n_measurements + 3,)`. The first `self.n_measurements` elements
-        correspond to returns coefficients.
-        """
-        # (z, unconstrained_sigma, unconstrained_mu, unconstrained_phi)
-        batch_shape = x.shape[:-1]
+        batch_shape = unconstrained.shape[:-1]
 
-        z = x[..., :self.n_measurements]
-        unconstrained_sigma = x[..., self.n_measurements]
-        unconstrained_mu = x[..., self.n_measurements + 1]
-        unconstrained_phi = x[..., self.n_measurements + 2]
-
-        phi_transformed, log_det_phi_transformed = bound_parameter(unconstrained_phi, batch_shape, low=0.0, high=1.0)
-        sigma, log_det_sigma = bound_parameter(unconstrained_sigma, batch_shape, low=0.0, high=torch.inf)
-        mu, log_det_mu = bound_parameter(unconstrained_mu, batch_shape, low=0.0, high=torch.inf)
-        log_det = log_det_phi_transformed + log_det_sigma + log_det_mu
-
-        log_prob_z = sum_except_batch(td.Normal(loc=0.0, scale=1.0).log_prob(z), batch_shape)
-        log_prob_sigma = td.HalfCauchy(scale=2.0).log_prob(sigma)
-        log_prob_mu = td.Exponential(rate=1.0).log_prob(mu)
-        log_prob_phi_transformed = td.Beta(concentration0=20.0, concentration1=1.5).log_prob(phi_transformed)
-        log_prior = log_prob_z + log_prob_sigma + log_prob_mu + log_prob_phi_transformed
-
-        phi = phi_transformed * 2 - 1
-
-        h = torch.zeros(size=(*batch_shape, self.n_measurements), device=x.device, dtype=x.dtype)
-        h[..., 0] = mu + sigma * z[..., 0] / torch.sqrt(1 - phi ** 2)
+        out['phi'] = out['phi_prime'] * 2 - 1
+        out['h'] = torch.zeros(
+            size=(*batch_shape, self.n_measurements),
+            device=unconstrained.device,
+            dtype=unconstrained.dtype
+        )
+        out['h'][..., 0] = (
+            out['mu']
+            + (
+                out['sigma'] * out['z'][..., [0]]
+                / torch.sqrt(1 - out['phi'] ** 2)
+            )
+        )[..., 0]
         for i in range(1, self.n_measurements):
-            h[..., i] = mu + sigma * z[..., i] + phi * (h[..., i - 1] - mu)
+            out['h'][..., i] = (
+                out['mu']
+                + (
+                    out['sigma']
+                    * out['z'][..., [i]] + out['phi']
+                    * (
+                        out['h'][..., [i - 1]]
+                        - out['mu']
+                    )
+                )
+            )[..., 0]
 
-        y_scale = torch.exp(h / 2)
+        # Compute prior probabilities
+        if return_log_probs:
+            log_prob_z = td.Normal(
+                loc=0.0,
+                scale=1.0
+            ).log_prob(out['z']).sum(dim=-1)
+            log_prob_sigma = td.HalfCauchy(
+                scale=2.0
+            ).log_prob(out['sigma'])[..., 0]
+            log_prob_mu = td.Exponential(
+                rate=1.0
+            ).log_prob(out['mu'])[..., 0]
+            log_prob_phi_prime = td.Beta(
+                concentration0=20.0,
+                concentration1=1.5
+            ).log_prob(out['phi_prime'])[..., -0]
+
+            out['log_prior'] = (
+                log_prob_z
+                + log_prob_sigma
+                + log_prob_mu
+                + log_prob_phi_prime
+            )
+
+        return out
+
+    def likelihood_object(self,
+                          extracted: Dict[str, torch.Tensor]):
+        y_scale = torch.exp(extracted['h'] / 2)
         y_loc = torch.zeros_like(y_scale)
+        return td.Independent(
+            td.Normal(
+                loc=y_loc,
+                scale=y_scale
+            ),
+            1
+        )
 
-        log_likelihood = -gaussian_potential(self.measurements[None], y_loc, y_scale).sum(dim=-1)
-
-        log_prob = log_likelihood + log_prior + log_det
-        return -log_prob
+    def compute_likelihood(self, extracted):
+        return self.likelihood_object(extracted).log_prob(self.measurements)
 
     @property
     def mean(self):
         return torch.load(
-            pathlib.Path(__file__).absolute().parent.parent / 'true_moments' / 'stochastic_volatility_moments.pt',
+            pathlib.Path(__file__).absolute().parent.parent /
+            'true_moments' / 'stochastic_volatility_moments.pt',
             weights_only=True
         )[0]
 
     @property
     def second_moment(self):
         return torch.load(
-            pathlib.Path(__file__).absolute().parent.parent / 'true_moments' / 'stochastic_volatility_moments.pt',
+            pathlib.Path(__file__).absolute().parent.parent /
+            'true_moments' / 'stochastic_volatility_moments.pt',
             weights_only=True
         )[1]
 
     @property
     def variance(self):
         return self.second_moment - self.mean ** 2
-    
-    def _compute_likelihood_parameters(self, x: torch.Tensor):
-        batch_shape = x.shape[:-1]
-
-        z = x[..., :self.n_measurements]
-        unconstrained_sigma = x[..., self.n_measurements]
-        unconstrained_mu = x[..., self.n_measurements + 1]
-        unconstrained_phi = x[..., self.n_measurements + 2]
-
-        phi_transformed, _ = bound_parameter(unconstrained_phi, batch_shape, low=0.0, high=1.0)
-        sigma, _ = bound_parameter(unconstrained_sigma, batch_shape, low=0.0, high=torch.inf)
-        mu, _ = bound_parameter(unconstrained_mu, batch_shape, low=0.0, high=torch.inf)
-
-        phi = phi_transformed * 2 - 1
-
-        h = torch.zeros(size=(*batch_shape, self.n_measurements), device=x.device, dtype=x.dtype)
-        h[..., 0] = mu + sigma * z[..., 0] / torch.sqrt(1 - phi ** 2)
-        for i in range(1, self.n_measurements):
-            h[..., i] = mu + sigma * z[..., i] + phi * (h[..., i - 1] - mu)
-
-        y_scale = torch.exp(h / 2)
-        y_loc = torch.zeros_like(y_scale)
-
-        return y_loc, y_scale
-
-    def posterior_predictive_draws(self, posterior_draws: torch.Tensor, n_draws: int = 100) -> torch.Tensor:
-        y_loc, y_scale = self._compute_likelihood_parameters(posterior_draws)
-        dist = td.Independent(
-            td.Normal(loc=y_loc, scale=y_scale),
-            reinterpreted_batch_ndims=1
-        )
-        return dist.sample((n_draws,))
-
-    def normalized_log_posterior_predictive_density(self, posterior_draws: torch.Tensor) -> torch.Tensor:
-        y_loc, y_scale = self._compute_likelihood_parameters(posterior_draws)
-        dist = td.Independent(
-            td.Normal(loc=y_loc, scale=y_scale),
-            reinterpreted_batch_ndims=1
-        )
-        log_likelihood = dist.log_prob(self.measurements)
-        return log_likelihood.exp().mean(dim=-1).log().mean()  # Take mean instead of sum
 
 
 if __name__ == '__main__':
