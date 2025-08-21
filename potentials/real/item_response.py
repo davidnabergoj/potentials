@@ -1,9 +1,11 @@
 import json
 from pathlib import Path
+from typing import Dict
 
 import torch
 import torch.distributions as td
 from potentials.real.posterior_base import Posterior1D
+from potentials.real.posterior_util import Parameter1D, ParameterSet1D
 from potentials.utils import reduce_two_key_dataset, sum_except_batch
 import urllib.request
 
@@ -42,50 +44,67 @@ class SyntheticItemResponseTheory(Posterior1D):
         # Handle smaller data
         if n_data is not None:
             if n_data > self.n_responses:
-                raise ValueError("New dataset cannot have more entries than the original")
+                raise ValueError(
+                    "New dataset cannot have more entries than the original")
             self.responses = self.responses[:n_data]
             self.student_index = self.student_index[:n_data]
             self.question_index = self.question_index[:n_data]
             self.n_responses = n_data
 
         # Keep original event shape even if we remove some data entries
-        super().__init__(event_shape=(501,))
-
-    def compute(self, x: torch.Tensor) -> torch.Tensor:
-        batch_shape = x.shape[:-1]
-
-        beta = x[..., 0:400]
-        alpha = x[..., 400:500]
-        delta = x[..., 500]
-
-        log_prob_delta = td.Normal(loc=3 / 4, scale=1.0).log_prob(delta)
-        log_prob_alpha = sum_except_batch(
-            td.Normal(loc=0.0, scale=1.0).log_prob(alpha), batch_shape)
-        log_prob_beta = sum_except_batch(
-            td.Normal(loc=0.0, scale=1.0).log_prob(beta), batch_shape)
-        log_prior = log_prob_alpha + log_prob_beta + log_prob_delta
-
-        probs = torch.sigmoid(
-            alpha[..., self.student_index] - beta[..., self.question_index] + delta[..., None])
-        log_likelihood = sum_except_batch(
-            torch.distributions.Bernoulli(
-                probs=probs).log_prob(self.responses),
-            batch_shape
+        super().__init__(
+            event_shape=(501,),
+            posterior_parameters=ParameterSet1D({
+                'beta': Parameter1D(400),
+                'alpha': Parameter1D(100),
+                'delta': Parameter1D(1),
+            })
         )
-        log_prob = log_likelihood + log_prior
 
-        return -log_prob
+    def extract_parameters(self,
+                           unconstrained: torch.Tensor,
+                           return_log_probs: bool = True) -> Dict[str, torch.Tensor]:
+        # (mu_a, log_sigma_a, log_sigma_y, a, b)
+        out, log_det = self.posterior_parameters.constrain(
+            unconstrained
+        )
 
-    def normalized_log_posterior_predictive_density(self, posterior_draws: torch.Tensor) -> torch.Tensor:
-        beta = posterior_draws[..., 0:400]
-        alpha = posterior_draws[..., 400:500]
-        delta = posterior_draws[..., 500]
+        # Compute prior probabilities
+        if return_log_probs:
+            log_prob_beta = td.Normal(
+                loc=0.0,
+                scale=1.0
+            ).log_prob(out['beta']).sum(dim=-1)
+            log_prob_alpha = td.Normal(
+                loc=0.0,
+                scale=1.0
+            ).log_prob(out['alpha']).sum(dim=-1)
+            log_prob_delta = td.Normal(
+                loc=3 / 4,
+                scale=1.0
+            ).log_prob(out['delta'])[..., 0]
 
-        probs = torch.sigmoid(
-            alpha[..., self.student_index] - beta[..., self.question_index] + delta[..., None])
-        log_likelihood = torch.distributions.Bernoulli(
-            probs=probs).log_prob(self.responses)
-        return log_likelihood.exp().mean(dim=1).log().mean()  # Take mean instead of sum
+            out['log_prior'] = (
+                log_prob_beta
+                + log_prob_alpha
+                + log_prob_delta
+                + log_det
+            )
+
+        return out
+
+    def likelihood_object(self,
+                          extracted: Dict[str, torch.Tensor]):
+
+        logits = (
+            extracted['alpha'][..., self.student_index]
+            - extracted['beta'][..., self.question_index]
+            + extracted['delta']
+        )
+        return td.Independent(td.Bernoulli(logits=logits), 1)
+
+    def compute_likelihood(self, extracted):
+        return self.likelihood_object(extracted).log_prob(self.responses)
 
     @property
     def mean(self):
@@ -101,7 +120,8 @@ class SyntheticItemResponseTheory(Posterior1D):
     @property
     def second_moment(self):
         if self._modified:
-            raise ValueError("Reference second moment unavailable for modified dataset")
+            raise ValueError(
+                "Reference second moment unavailable for modified dataset")
         path = Path(__file__).parent.parent / 'true_moments' / \
             f'synthetic_item_response_theory_moments.pt'
         if path.exists():
@@ -119,10 +139,10 @@ if __name__ == '__main__':
     print(f'{u.responses.shape=}, {u.n_responses=}')
     print(f'{u.student_index.shape=}, {u.n_students=}')
     print(f'{u.question_index.shape=}, {u.n_questions=}')
-    print(f'{u.event_shape = }')
+    print(f'{u.event_shape=}')
     print()
-    print(f'{len(torch.unique(u.student_index)) = }')
-    print(f'{len(torch.unique(u.question_index)) = }')
+    print(f'{len(torch.unique(u.student_index))=}')
+    print(f'{len(torch.unique(u.question_index))=}')
 
     torch.manual_seed(0)
     out = u(torch.randn(size=(5, *u.event_shape)))

@@ -74,7 +74,9 @@ class GermanCredit(Posterior1D):
 
         # Compute prior probabilities
         if return_log_probs:
-            log_prob_tau = td.Gamma(0.5, 0.5).log_prob(out['tau'])[..., 0]
+            log_prob_tau = td.Gamma(0.5, 0.5).log_prob(
+                out['tau']
+            )[..., 0]
             log_prob_beta = td.Normal(0.0, 1.0).log_prob(
                 out['beta']
             ).sum(dim=-1)
