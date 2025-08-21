@@ -75,7 +75,6 @@ class RadonVaryingSlopes(StructuredPotential):
         self._modified = n_data is not None
         super().__init__(event_shape=(4 + n_counties,))
 
-
     def compute(self, model_params):
         # Extract parameters
         # (mu_a, log_sigma_a, log_sigma_y, a, b)
@@ -100,12 +99,12 @@ class RadonVaryingSlopes(StructuredPotential):
         log_prob_sigma_a = td.HalfCauchy(scale=5).log_prob(sigma_a)
         log_prob_sigma_y = td.HalfCauchy(scale=5).log_prob(sigma_y)
         log_prob_a = td.Independent(
-            td.Normal(mu_a[:, None], sigma_a[:, None]), 1).log_prob(a)
+            td.Normal(mu_a[..., None], sigma_a[..., None]), 1).log_prob(a)
         log_prob_y = td.Independent(
             td.Normal(
-                a[:, self.county_idx - 1] * self.floor[None] +
-                b[:, None].repeat(1, len(self.county_idx)),
-                sigma_y[:, None].repeat(1, len(self.county_idx))
+                a[..., self.county_idx - 1] * self.floor[None] +
+                b[..., None].repeat(*[1] * len(batch_shape), len(self.county_idx)),
+                sigma_y[..., None].repeat(*[1] * len(batch_shape), len(self.county_idx))
             ),
             1
         ).log_prob(self.log_radon)
@@ -140,7 +139,8 @@ class RadonVaryingSlopes(StructuredPotential):
     @property
     def second_moment(self):
         if self._modified:
-            raise ValueError("Reference second moment unavailable for modified dataset")
+            raise ValueError(
+                "Reference second moment unavailable for modified dataset")
         path = Path(__file__).parent.parent / \
             'true_moments' / f'radon_slopes_moments.pt'
         if path.exists():
@@ -193,12 +193,14 @@ class RadonVaryingIntercepts(StructuredPotential):
         log_prob_sigma_b = td.HalfCauchy(scale=5).log_prob(sigma_b)
         log_prob_sigma_y = td.HalfCauchy(scale=5).log_prob(sigma_y)
         log_prob_b = td.Independent(
-            td.Normal(mu_b[:, None], sigma_b[:, None]), 1).log_prob(b)
+            td.Normal(mu_b[..., None], sigma_b[..., None]),
+            1
+        ).log_prob(b)
         log_prob_y = td.Independent(
             td.Normal(
-                a[:, None].repeat(1, len(self.county_idx)) *
-                self.floor[None] + b[:, self.county_idx - 1],
-                sigma_y[:, None].repeat(1, len(self.county_idx))
+                a[..., None].repeat(*[1] * len(batch_shape), len(self.county_idx)) *
+                self.floor[None] + b[..., self.county_idx - 1],
+                sigma_y[..., None].repeat(*[1] * len(batch_shape), len(self.county_idx))
             ),
             1
         ).log_prob(self.log_radon)
@@ -233,7 +235,8 @@ class RadonVaryingIntercepts(StructuredPotential):
     @property
     def second_moment(self):
         if self._modified:
-            raise ValueError("Reference second moment unavailable for modified dataset")
+            raise ValueError(
+                "Reference second moment unavailable for modified dataset")
         path = Path(__file__).parent.parent / 'true_moments' / \
             f'radon_intercepts_moments.pt'
         if path.exists():
@@ -291,14 +294,14 @@ class RadonVaryingInterceptsAndSlopes(StructuredPotential, Posterior):
         log_prob_sigma_b = td.HalfCauchy(scale=5).log_prob(sigma_b)
         log_prob_sigma_y = td.HalfCauchy(scale=5).log_prob(sigma_y)
         log_prob_a = td.Independent(
-            td.Normal(mu_a[:, None], sigma_a[:, None]), 1).log_prob(a)
+            td.Normal(mu_a[..., None], sigma_a[..., None]), 1).log_prob(a)
         log_prob_b = td.Independent(
-            td.Normal(mu_b[:, None], sigma_b[:, None]), 1).log_prob(b)
+            td.Normal(mu_b[..., None], sigma_b[..., None]), 1).log_prob(b)
         log_prob_y = td.Independent(
             td.Normal(
-                a[:, self.county_idx - 1] * self.floor[None] +
-                b[:, self.county_idx - 1],
-                sigma_y[:, None].repeat(1, len(self.county_idx))
+                a[..., self.county_idx - 1] * self.floor[None] +
+                b[..., self.county_idx - 1],
+                sigma_y[..., None].repeat(*[1] * len(batch_shape), len(self.county_idx))
             ),
             1
         ).log_prob(self.log_radon)
@@ -342,7 +345,8 @@ class RadonVaryingInterceptsAndSlopes(StructuredPotential, Posterior):
     @property
     def second_moment(self):
         if self._modified:
-            raise ValueError("Reference second moment unavailable for modified dataset")
+            raise ValueError(
+                "Reference second moment unavailable for modified dataset")
         path = Path(__file__).parent.parent / 'true_moments' / \
             f'radon_intercepts_slopes_moments.pt'
         if path.exists():
@@ -368,24 +372,26 @@ class RadonVaryingInterceptsAndSlopes(StructuredPotential, Posterior):
         return a, b, sigma_y
 
     def posterior_predictive_draws(self, posterior_draws: torch.Tensor, n_draws: int = 100) -> torch.Tensor:
+        batch_shape = posterior_draws.shape[:-1]
         a, b, sigma_y = self._compute_likelihood_parameters(posterior_draws)
         dist = td.Independent(
             td.Normal(
-                a[:, self.county_idx - 1] * self.floor[None] +
-                b[:, self.county_idx - 1],
-                sigma_y[:, None].repeat(1, len(self.county_idx))
+                a[..., self.county_idx - 1] * self.floor[None] +
+                b[..., self.county_idx - 1],
+                sigma_y[..., None].repeat(*[1] * len(batch_shape), len(self.county_idx))
             ),
             1
         )
         return dist.sample((n_draws,))
 
     def normalized_log_posterior_predictive_density(self, posterior_draws: torch.Tensor):
+        batch_shape = posterior_draws.shape[:-1]
         a, b, sigma_y = self._compute_likelihood_parameters(posterior_draws)
         dist = td.Independent(
             td.Normal(
-                a[:, self.county_idx - 1] * self.floor[None] +
-                b[:, self.county_idx - 1],
-                sigma_y[:, None].repeat(1, len(self.county_idx))
+                a[..., self.county_idx - 1] * self.floor[None] +
+                b[..., self.county_idx - 1],
+                sigma_y[..., None].repeat(*[1] * len(batch_shape), len(self.county_idx))
             ),
             1
         )
@@ -396,11 +402,11 @@ class RadonVaryingInterceptsAndSlopes(StructuredPotential, Posterior):
 if __name__ == '__main__':
     _n_data = 250
     for target in [
-        RadonVaryingSlopes(n_data=_n_data), 
-        RadonVaryingIntercepts(n_data=_n_data), 
+        RadonVaryingSlopes(n_data=_n_data),
+        RadonVaryingIntercepts(n_data=_n_data),
         RadonVaryingInterceptsAndSlopes(n_data=_n_data)
     ]:
-        print(f'{len(torch.unique(target.county_idx)) = }')
+        print(f'{len(torch.unique(target.county_idx))=}')
 
         # print(target.mean.shape)
         # print(target.second_moment.shape)
