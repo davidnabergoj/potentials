@@ -4,12 +4,12 @@ from pathlib import Path
 
 import torch
 import torch.distributions as td
-from potentials.base import Posterior
+from potentials.real.posterior_base import Posterior1D
 from potentials.transformations import bound_parameter
 from potentials.utils import sum_except_batch
 
 
-class EightSchools(Posterior):
+class EightSchools(Posterior1D):
     """
 
     Reference: https://raw.githubusercontent.com/stan-dev/example-models/master/misc/eight_schools/eight_schools.data.json

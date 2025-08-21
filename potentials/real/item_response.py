@@ -3,12 +3,12 @@ from pathlib import Path
 
 import torch
 import torch.distributions as td
-from potentials.base import Posterior
+from potentials.real.posterior_base import Posterior1D
 from potentials.utils import reduce_two_key_dataset, sum_except_batch
 import urllib.request
 
 
-class SyntheticItemResponseTheory(Posterior):
+class SyntheticItemResponseTheory(Posterior1D):
     """
 
     Reference: https://github.com/stan-dev/example-models/blob/master/misc/irt/irt.data.json

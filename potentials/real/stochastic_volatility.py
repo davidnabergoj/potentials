@@ -5,13 +5,13 @@ import csv
 import torch
 import torch.distributions as td
 
-from potentials.base import Posterior
+from potentials.real.posterior_base import Posterior1D
 from potentials.synthetic.gaussian.diagonal import gaussian_potential
 from potentials.transformations import bound_parameter
 from potentials.utils import sum_except_batch
 
 
-class StochasticVolatilityModel(Posterior):
+class StochasticVolatilityModel(Posterior1D):
     """
     Stochastic volatility model.
 

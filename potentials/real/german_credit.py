@@ -1,6 +1,6 @@
 import numpy as np
 
-from potentials.base import Posterior
+from potentials.real.posterior_base import Posterior1D
 import torch
 from pathlib import Path
 import urllib.request
@@ -36,7 +36,7 @@ def load_german_credit():
     return x, y
 
 
-class GermanCredit(Posterior):
+class GermanCredit(Posterior1D):
     """
     tau ~ Gamma(0.5, 0.5)
     beta[i] ~ N(0, 1)
@@ -143,7 +143,7 @@ class GermanCredit(Posterior):
         return log_likelihood.exp().mean(dim=-1).log().mean()  # Take mean instead of sum
 
 
-class SparseGermanCredit(Posterior):
+class SparseGermanCredit(Posterior1D):
     """
     tau ~ Gamma(0.5, 0.5)
     beta[i] ~ N(0, 1)
@@ -272,7 +272,7 @@ class SparseGermanCredit(Posterior):
         return log_likelihood.exp().mean(dim=1).log().mean()  # Take mean instead of sum
 
 
-class SparseGermanCreditMissingData(Posterior):
+class SparseGermanCreditMissingData(Posterior1D):
     """
     tau ~ Gamma(0.5, 0.5)
     beta[i] ~ N(0, 1)

@@ -132,6 +132,9 @@ def bound_parameter(x: torch.Tensor,
     :return: transformed tensor and log determinant of the Jacobian of the transformation.
     :rtype: Tuple[torch.Tensor, torch.Tensor]
     """
+    if (low < 0 and math.isinf(low)) and (high > 0 and math.isinf(high)):
+        return x, 0.0  # No transformation
+
     if low >= high:
         raise ValueError(f'Lower bound {low} is greater than or equal to high {high}')
     if math.isinf(low) and low > 0:
