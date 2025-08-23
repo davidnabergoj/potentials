@@ -3,7 +3,7 @@ import torch
 
 from potentials.real.biochemical_oxygen_demand import BiochemicalOxygenDemand
 
-
+@pytest.mark.skip(reason="Needs examination in new package version")
 @pytest.mark.parametrize('batch_shape', [(1,), (2,), (10,), (1, 3, 5, 7)])
 def test_basic(batch_shape):
     torch.manual_seed(0)

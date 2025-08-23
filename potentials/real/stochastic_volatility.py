@@ -8,9 +8,6 @@ import torch.distributions as td
 
 from potentials.real.posterior_base import Posterior1D
 from potentials.real.posterior_util import Parameter1D, ParameterSet1D
-from potentials.synthetic.gaussian.diagonal import gaussian_potential
-from potentials.transformations import bound_parameter
-from potentials.utils import sum_except_batch
 
 
 class StochasticVolatilityModel(Posterior1D):
@@ -23,7 +20,7 @@ class StochasticVolatilityModel(Posterior1D):
     Reference: https://proceedings.mlr.press/v130/hoffman21a/hoffman21a.pdf
     """
 
-    def __init__(self, n_measurements: int = 3000):
+    def __init__(self, n_measurements: int = 2517):
         """
         StochasticVolatilityModel constructor.
 
@@ -39,6 +36,8 @@ class StochasticVolatilityModel(Posterior1D):
 
         self.measurements: torch.Tensor = closing_prices[:n_measurements]
         self.n_measurements = len(self.measurements)
+        self._modified = self.n_measurements != 2517
+
         super().__init__(
             event_shape=(self.n_measurements + 3,),
             posterior_parameters=ParameterSet1D({
@@ -100,13 +99,14 @@ class StochasticVolatilityModel(Posterior1D):
             log_prob_phi_prime = td.Beta(
                 concentration0=20.0,
                 concentration1=1.5
-            ).log_prob(out['phi_prime'])[..., -0]
+            ).log_prob(out['phi_prime'])[..., 0]
 
             out['log_prior'] = (
                 log_prob_z
                 + log_prob_sigma
                 + log_prob_mu
                 + log_prob_phi_prime
+                + log_det
             )
 
         return out
@@ -128,6 +128,9 @@ class StochasticVolatilityModel(Posterior1D):
 
     @property
     def mean(self):
+        if self._modified:
+            raise ValueError(
+                "Reference mean unavailable for modified dataset")
         return torch.load(
             pathlib.Path(__file__).absolute().parent.parent /
             'true_moments' / 'stochastic_volatility_moments.pt',
@@ -136,6 +139,9 @@ class StochasticVolatilityModel(Posterior1D):
 
     @property
     def second_moment(self):
+        if self._modified:
+            raise ValueError(
+                "Reference second moment unavailable for modified dataset")
         return torch.load(
             pathlib.Path(__file__).absolute().parent.parent /
             'true_moments' / 'stochastic_volatility_moments.pt',

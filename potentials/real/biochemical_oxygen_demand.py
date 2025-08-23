@@ -12,6 +12,7 @@ class BiochemicalOxygenDemand(Potential):
     Biochemical Oxygen Demand model. Warning: potentially has a bug.
     """
     def __init__(self):
+        raise NotImplementedError
         event_shape = (2,)
         super().__init__(event_shape)
 

@@ -3,7 +3,6 @@ import pytest
 import torch
 
 from potentials.real import (
-    BiochemicalOxygenDemand,
     EightSchools,
     GermanCredit,
     SparseGermanCredit,
@@ -19,7 +18,6 @@ from potentials.synthetic.phi4 import Phi4
 
 
 @pytest.mark.parametrize('potential_class', [
-    BiochemicalOxygenDemand,
     EightSchools,
     GermanCredit,
     SparseGermanCredit,

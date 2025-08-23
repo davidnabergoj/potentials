@@ -19,6 +19,7 @@ def load_basketball(file_path: str = 'data/basketball.json'):
 
 class BasketballV1(StructuredPotential):
     def __init__(self, file_path: str):
+        raise NotImplementedError
         self.n_players, self.labels, self.player_ids, _, _ = load_basketball(file_path)
         self.n_shots = len(self.labels)
         # Note: n_shots >= n_players

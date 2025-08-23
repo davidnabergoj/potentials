@@ -317,6 +317,7 @@ class SparseGermanCreditMissingData(Posterior1D):
     """
 
     def __init__(self, n_missing_rows=100):
+        raise NotImplementedError
         self.n_missing_rows = n_missing_rows
         self.full_features, self.labels = load_german_credit()
 
