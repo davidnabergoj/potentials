@@ -36,13 +36,30 @@ class Parameter1D:
             low=self.lower_bound,
             high=self.upper_bound
         )
-    
+
     def constrain_with_prior(self, unconstrained: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Return the constrained parameter and log prior.
         The log prior includes the log Jacobian determinant of the constraining transformation.
         """
         raise NotImplementedError
+
+
+class ParameterScalar(Parameter1D):
+    def __init__(self,
+                 bound: bool = None):
+        super().__init__(1, bound)
+
+
+class ParameterVector(Parameter1D):
+    def __init__(self,
+                 n_dim: int,
+                 bound: bool = None):
+        if n_dim <= 1:
+            raise ValueError(
+                "Can only use ParameterVector with 2 or more elements"
+            )
+        super().__init__(n_dim, bound)
 
 
 class ParameterSet1D:

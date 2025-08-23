@@ -5,7 +5,7 @@ from typing import Dict
 import torch
 import torch.distributions as td
 from potentials.real.posterior_base import Posterior1D
-from potentials.real.posterior_util import Parameter1D, ParameterSet1D
+from potentials.real.posterior_util import ParameterSet1D, ParameterScalar, ParameterVector
 from potentials.utils import reduce_two_key_dataset, sum_except_batch
 import urllib.request
 
@@ -57,21 +57,21 @@ class SyntheticItemResponseTheory(Posterior1D):
             super().__init__(
                 event_shape=(504,),
                 posterior_parameters=ParameterSet1D({
-                    'beta': Parameter1D(400),
-                    'alpha': Parameter1D(100),
-                    'delta': Parameter1D(1),
-                    'beta_prior_scale': Parameter1D(1, 'positive'),
-                    'alpha_prior_scale': Parameter1D(1, 'positive'),
-                    'delta_prior_scale': Parameter1D(1, 'positive'),
+                    'beta': ParameterVector(400),
+                    'alpha': ParameterVector(100),
+                    'delta': ParameterScalar(),
+                    'beta_prior_scale': ParameterScalar('positive'),
+                    'alpha_prior_scale': ParameterScalar('positive'),
+                    'delta_prior_scale': ParameterScalar('positive'),
                 })
             )
         else:
             super().__init__(
                 event_shape=(501,),
                 posterior_parameters=ParameterSet1D({
-                    'beta': Parameter1D(400),
-                    'alpha': Parameter1D(100),
-                    'delta': Parameter1D(1),
+                    'beta': ParameterVector(400),
+                    'alpha': ParameterVector(100),
+                    'delta': ParameterScalar(),
                 })
             )
 

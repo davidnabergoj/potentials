@@ -6,9 +6,8 @@ from pathlib import Path
 import torch
 import torch.distributions as td
 from potentials.real.posterior_base import Posterior1D
-from potentials.real.posterior_util import Parameter1D, ParameterSet1D
+from potentials.real.posterior_util import ParameterSet1D, ParameterScalar, ParameterVector
 from potentials.transformations import bound_parameter
-from potentials.utils import sum_except_batch
 
 
 class EightSchools(Posterior1D):
@@ -34,9 +33,9 @@ class EightSchools(Posterior1D):
         super().__init__(
             event_shape=(10,),
             posterior_parameters=ParameterSet1D({
-                'mu': Parameter1D(1),
-                'tau': Parameter1D(1, 'positive'),
-                'theta_prime': Parameter1D(8),
+                'mu': ParameterScalar(),
+                'tau': ParameterScalar('positive'),
+                'theta_prime': ParameterVector(8),
             })
         )
 

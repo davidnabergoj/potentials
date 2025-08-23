@@ -8,8 +8,7 @@ from potentials.real.posterior_base import Posterior1D
 import torch
 import torch.distributions as td
 
-from potentials.real.posterior_util import ParameterSet1D, Parameter1D
-from potentials.transformations import bound_positive
+from potentials.real.posterior_util import ParameterSet1D, ParameterScalar, ParameterVector
 
 
 # https://www.tensorflow.org/probability/examples/Multilevel_Modeling_Primer
@@ -77,11 +76,11 @@ class RadonVaryingSlopes(Posterior1D):
         super().__init__(
             event_shape=(4 + n_counties,),
             posterior_parameters=ParameterSet1D({
-                'mu_a': Parameter1D(1),
-                'sigma_a': Parameter1D(1, 'positive'),
-                'sigma_y': Parameter1D(1, 'positive'),
-                'a': Parameter1D(self.n_counties),
-                'b': Parameter1D(1),
+                'mu_a': ParameterScalar(),
+                'sigma_a': ParameterScalar('positive'),
+                'sigma_y': ParameterScalar('positive'),
+                'a': ParameterVector(self.n_counties),
+                'b': ParameterScalar(),
             })
         )
 
@@ -193,11 +192,11 @@ class RadonVaryingIntercepts(Posterior1D):
         super().__init__(
             event_shape=(4 + n_counties,),
             posterior_parameters=ParameterSet1D({
-                'mu_b': Parameter1D(1),
-                'sigma_b': Parameter1D(1, 'positive'),
-                'sigma_y': Parameter1D(1, 'positive'),
-                'a': Parameter1D(1),
-                'b': Parameter1D(self.n_counties),
+                'mu_b': ParameterScalar(),
+                'sigma_b': ParameterScalar('positive'),
+                'sigma_y': ParameterScalar('positive'),
+                'a': ParameterScalar(),
+                'b': ParameterVector(self.n_counties),
             }))
 
     def extract_parameters(self,
@@ -307,13 +306,13 @@ class RadonVaryingInterceptsAndSlopes(Posterior1D):
         super().__init__(
             event_shape=(5 + 2 * n_counties,),
             posterior_parameters=ParameterSet1D({
-                'mu_a': Parameter1D(1),
-                'sigma_a': Parameter1D(1, 'positive'),
-                'mu_b': Parameter1D(1),
-                'sigma_b': Parameter1D(1, 'positive'),
-                'sigma_y': Parameter1D(1, 'positive'),
-                'a': Parameter1D(self.n_counties),
-                'b': Parameter1D(self.n_counties),
+                'mu_a': ParameterScalar(),
+                'sigma_a': ParameterScalar('positive'),
+                'mu_b': ParameterScalar(),
+                'sigma_b': ParameterScalar('positive'),
+                'sigma_y': ParameterScalar('positive'),
+                'a': ParameterVector(self.n_counties),
+                'b': ParameterVector(self.n_counties),
             })
         )
 

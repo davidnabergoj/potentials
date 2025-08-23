@@ -7,7 +7,7 @@ import torch
 import torch.distributions as td
 
 from potentials.real.posterior_base import Posterior1D
-from potentials.real.posterior_util import Parameter1D, ParameterSet1D
+from potentials.real.posterior_util import ParameterSet1D, ParameterVector, ParameterScalar
 
 
 class StochasticVolatilityModel(Posterior1D):
@@ -41,10 +41,10 @@ class StochasticVolatilityModel(Posterior1D):
         super().__init__(
             event_shape=(self.n_measurements + 3,),
             posterior_parameters=ParameterSet1D({
-                'z': Parameter1D(self.n_measurements),
-                'sigma': Parameter1D(1, 'positive'),
-                'mu': Parameter1D(1, 'positive'),
-                'phi_prime': Parameter1D(1, (0, 1)),
+                'z': ParameterVector(self.n_measurements),
+                'sigma': ParameterScalar('positive'),
+                'mu': ParameterScalar('positive'),
+                'phi_prime': ParameterScalar((0, 1)),
             })
         )
 

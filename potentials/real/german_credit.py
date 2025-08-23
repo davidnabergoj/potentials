@@ -8,7 +8,7 @@ import urllib.request
 import zipfile
 import torch.distributions as td
 
-from potentials.real.posterior_util import Parameter1D, ParameterSet1D
+from potentials.real.posterior_util import ParameterSet1D, ParameterVector, ParameterScalar
 from potentials.transformations import bound_parameter, bound_positive
 
 
@@ -64,17 +64,17 @@ class GermanCredit(Posterior1D):
             super().__init__(
                 event_shape=(27,),
                 posterior_parameters=ParameterSet1D({
-                    'tau': Parameter1D(1, 'positive'),
-                    'beta': Parameter1D(25),
-                    'beta_prior_scale': Parameter1D(1, 'positive')
+                    'tau': ParameterScalar('positive'),
+                    'beta': ParameterVector(25),
+                    'beta_prior_scale': ParameterScalar('positive')
                 })
             )
         else:
             super().__init__(
                 event_shape=(26,),
                 posterior_parameters=ParameterSet1D({
-                    'tau': Parameter1D(1, 'positive'),
-                    'beta': Parameter1D(25),
+                    'tau': ParameterScalar('positive'),
+                    'beta': ParameterVector(25),
                 })
             )
 
@@ -193,19 +193,19 @@ class SparseGermanCredit(Posterior1D):
             super().__init__(
                 event_shape=(52,),
                 posterior_parameters=ParameterSet1D({
-                    'tau': Parameter1D(1, 'positive'),
-                    'beta': Parameter1D(25),
-                    'lambda': Parameter1D(25, 'positive'),
-                    'beta_prior_scale': Parameter1D(1, 'positive')
+                    'tau': ParameterScalar('positive'),
+                    'beta': ParameterVector(25),
+                    'lambda': ParameterVector(25, 'positive'),
+                    'beta_prior_scale': ParameterScalar('positive')
                 })
             )
         else:
             super().__init__(
                 event_shape=(51,),
                 posterior_parameters=ParameterSet1D({
-                    'tau': Parameter1D(1, 'positive'),
-                    'beta': Parameter1D(25),
-                    'lambda': Parameter1D(25, 'positive')
+                    'tau': ParameterScalar('positive'),
+                    'beta': ParameterVector(25),
+                    'lambda': ParameterVector(25, 'positive')
                 })
             )
 
