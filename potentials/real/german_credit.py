@@ -44,7 +44,9 @@ class GermanCredit(Posterior1D):
     beta[i] ~ N(0, 1)
     """
 
-    def __init__(self, n_data: int = None):
+    def __init__(self,
+                 n_data: int = None,
+                 use_hyperprior: bool = False):
         self.features, self.labels = load_german_credit()
 
         if n_data is not None:
@@ -55,14 +57,26 @@ class GermanCredit(Posterior1D):
             self.features = self.features[:n_data]
             self.labels = self.labels[:n_data]
 
-        self._modified = n_data is not None
-        super().__init__(
-            event_shape=(26,),
-            posterior_parameters=ParameterSet1D({
-                'tau': Parameter1D(1, 'positive'),
-                'beta': Parameter1D(25),
-            })
-        )
+        self._modified = (n_data is not None) and not (use_hyperprior)
+        self.use_hyperprior = use_hyperprior
+
+        if use_hyperprior:
+            super().__init__(
+                event_shape=(27,),
+                posterior_parameters=ParameterSet1D({
+                    'tau': Parameter1D(1, 'positive'),
+                    'beta': Parameter1D(25),
+                    'beta_prior_scale': Parameter1D(1, 'positive')
+                })
+            )
+        else:
+            super().__init__(
+                event_shape=(26,),
+                posterior_parameters=ParameterSet1D({
+                    'tau': Parameter1D(1, 'positive'),
+                    'beta': Parameter1D(25),
+                })
+            )
 
     def extract_parameters(self,
                            unconstrained: torch.Tensor,
@@ -77,15 +91,37 @@ class GermanCredit(Posterior1D):
             log_prob_tau = td.Gamma(0.5, 0.5).log_prob(
                 out['tau']
             )[..., 0]
-            log_prob_beta = td.Normal(0.0, 1.0).log_prob(
-                out['beta']
-            ).sum(dim=-1)
 
-            out['log_prior'] = (
-                log_prob_tau
-                + log_prob_beta
-                + log_det
-            )
+            if self.use_hyperprior:
+                log_prob_beta_prior_scale = td.Cauchy(
+                    loc=0.0,
+                    scale=5.0
+                ).log_prob(out['beta_prior_scale'])[..., 0]
+                log_prob_beta = td.Independent(
+                    td.Normal(
+                        loc=0.0,
+                        scale=out['beta_prior_scale']
+                    ),
+                    reinterpreted_batch_ndims=1
+                ).log_prob(out['beta'])
+
+                out['log_prior'] = (
+                    log_prob_tau
+                    + log_prob_beta
+                    + log_prob_beta_prior_scale
+                    + log_det
+                )
+
+            else:
+                log_prob_beta = td.Normal(0.0, 1.0).log_prob(
+                    out['beta']
+                ).sum(dim=-1)
+
+                out['log_prior'] = (
+                    log_prob_tau
+                    + log_prob_beta
+                    + log_det
+                )
 
         return out
 
@@ -137,7 +173,9 @@ class SparseGermanCredit(Posterior1D):
     lambda[i] ~ Gamma(0.5, 0.5)
     """
 
-    def __init__(self, n_data: int = None):
+    def __init__(self,
+                 n_data: int = None,
+                 use_hyperprior: bool = False):
         self.features, self.labels = load_german_credit()
 
         if n_data is not None:
@@ -147,16 +185,29 @@ class SparseGermanCredit(Posterior1D):
                 )
             self.features = self.features[:n_data]
             self.labels = self.labels[:n_data]
-        self._modified = n_data is not None
+        self._modified = (n_data is not None) and (not use_hyperprior)
 
-        super().__init__(
-            event_shape=(51,),
-            posterior_parameters=ParameterSet1D({
-                'tau': Parameter1D(1, 'positive'),
-                'beta': Parameter1D(25),
-                'lambda': Parameter1D(25, 'positive')
-            })
-        )
+        self.use_hyperprior = use_hyperprior
+
+        if self.use_hyperprior:
+            super().__init__(
+                event_shape=(52,),
+                posterior_parameters=ParameterSet1D({
+                    'tau': Parameter1D(1, 'positive'),
+                    'beta': Parameter1D(25),
+                    'lambda': Parameter1D(25, 'positive'),
+                    'beta_prior_scale': Parameter1D(1, 'positive')
+                })
+            )
+        else:
+            super().__init__(
+                event_shape=(51,),
+                posterior_parameters=ParameterSet1D({
+                    'tau': Parameter1D(1, 'positive'),
+                    'beta': Parameter1D(25),
+                    'lambda': Parameter1D(25, 'positive')
+                })
+            )
 
     def extract_parameters(self,
                            unconstrained: torch.Tensor,
@@ -169,19 +220,42 @@ class SparseGermanCredit(Posterior1D):
         # Compute prior probabilities
         if return_log_probs:
             log_prob_tau = td.Gamma(0.5, 0.5).log_prob(out['tau'])[..., 0]
-            log_prob_beta = td.Normal(0.0, 1.0).log_prob(
-                out['beta']
-            ).sum(dim=-1)
             log_prob_lambda = td.Gamma(0.5, 0.5).log_prob(
                 out['lambda']
             ).sum(dim=-1)
 
-            out['log_prior'] = (
-                log_prob_tau
-                + log_prob_beta
-                + log_prob_lambda
-                + log_det
-            )
+            if self.use_hyperprior:
+                log_prob_beta_prior_scale = td.Cauchy(
+                    loc=0.0,
+                    scale=5.0
+                ).log_prob(out['beta_prior_scale'])[..., 0]
+                log_prob_beta = td.Independent(
+                    td.Normal(
+                        loc=0.0,
+                        scale=out['beta_prior_scale']
+                    ),
+                    reinterpreted_batch_ndims=1
+                ).log_prob(out['beta'])
+
+                out['log_prior'] = (
+                    log_prob_tau
+                    + log_prob_beta
+                    + log_prob_lambda
+                    + log_prob_beta_prior_scale
+                    + log_det
+                )
+
+            else:
+                log_prob_beta = td.Normal(
+                    loc=0.0, scale=1.0
+                ).log_prob(out['beta']).sum(dim=-1)
+
+                out['log_prior'] = (
+                    log_prob_tau
+                    + log_prob_beta
+                    + log_prob_lambda
+                    + log_det
+                )
 
         return out
 
@@ -228,43 +302,6 @@ class SparseGermanCredit(Posterior1D):
     @property
     def variance(self):
         return self.second_moment - self.mean ** 2
-
-    def _compute_likelihood_parameters(self, x: torch.Tensor):
-        assert x.shape[-1] == 51
-        batch_shape = x.shape[:-1]
-
-        beta = x[..., 1:26]
-        unnormalized_tau = x[..., 0]
-        unconstrained_lambda = x[..., 26:]
-
-        tau, _ = bound_parameter(
-            unnormalized_tau,
-            batch_shape,
-            low=0.0,
-            high=torch.inf
-        )
-        lmbd, _ = bound_parameter(
-            unconstrained_lambda,
-            batch_shape,
-            low=0.0,
-            high=torch.inf
-        )
-        logits = torch.einsum(
-            'nf,...f->...nf',
-            self.features,
-            tau.view(*batch_shape, 1) * beta * lmbd
-        ).sum(dim=-1)  # shape = (*batch_shape, features)
-        return logits
-
-    def posterior_predictive_draws(self, posterior_draws: torch.Tensor, n_draws: int = 100) -> torch.Tensor:
-        logits = self._compute_likelihood_parameters(posterior_draws)
-        dist = td.Bernoulli(logits=logits)
-        return dist.sample((n_draws,))
-
-    def normalized_log_posterior_predictive_density(self, posterior_draws: torch.Tensor):
-        logits = self._compute_likelihood_parameters(posterior_draws)
-        log_likelihood = td.Bernoulli(logits=logits).log_prob(self.labels)
-        return log_likelihood.exp().mean(dim=1).log().mean()  # Take mean instead of sum
 
 
 class SparseGermanCreditMissingData(Posterior1D):

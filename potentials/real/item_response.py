@@ -18,7 +18,8 @@ class SyntheticItemResponseTheory(Posterior1D):
     """
 
     def __init__(self,
-                 n_data: int = None):
+                 n_data: int = None,
+                 use_hyperprior: bool = False):
         download_url = "https://raw.githubusercontent.com/stan-dev/example-models/master/misc/irt/irt.data.json"
         data_dir = Path(__file__).parent / 'downloaded'
         data_file = data_dir / "irt.data.json"
@@ -39,8 +40,6 @@ class SyntheticItemResponseTheory(Posterior1D):
         self.question_index: torch.Tensor = torch.tensor(
             data['jj'], dtype=torch.long) - 1
 
-        self._modified = False
-
         # Handle smaller data
         if n_data is not None:
             if n_data > self.n_responses:
@@ -51,15 +50,30 @@ class SyntheticItemResponseTheory(Posterior1D):
             self.question_index = self.question_index[:n_data]
             self.n_responses = n_data
 
-        # Keep original event shape even if we remove some data entries
-        super().__init__(
-            event_shape=(501,),
-            posterior_parameters=ParameterSet1D({
-                'beta': Parameter1D(400),
-                'alpha': Parameter1D(100),
-                'delta': Parameter1D(1),
-            })
-        )
+        self._modified = (n_data is not None) and (not use_hyperprior)
+        self.use_hyperprior = use_hyperprior
+
+        if use_hyperprior:
+            super().__init__(
+                event_shape=(504,),
+                posterior_parameters=ParameterSet1D({
+                    'beta': Parameter1D(400),
+                    'alpha': Parameter1D(100),
+                    'delta': Parameter1D(1),
+                    'beta_prior_scale': Parameter1D(1, 'positive'),
+                    'alpha_prior_scale': Parameter1D(1, 'positive'),
+                    'delta_prior_scale': Parameter1D(1, 'positive'),
+                })
+            )
+        else:
+            super().__init__(
+                event_shape=(501,),
+                posterior_parameters=ParameterSet1D({
+                    'beta': Parameter1D(400),
+                    'alpha': Parameter1D(100),
+                    'delta': Parameter1D(1),
+                })
+            )
 
     def extract_parameters(self,
                            unconstrained: torch.Tensor,
@@ -71,25 +85,73 @@ class SyntheticItemResponseTheory(Posterior1D):
 
         # Compute prior probabilities
         if return_log_probs:
-            log_prob_beta = td.Normal(
-                loc=0.0,
-                scale=1.0
-            ).log_prob(out['beta']).sum(dim=-1)
-            log_prob_alpha = td.Normal(
-                loc=0.0,
-                scale=1.0
-            ).log_prob(out['alpha']).sum(dim=-1)
-            log_prob_delta = td.Normal(
-                loc=3 / 4,
-                scale=1.0
-            ).log_prob(out['delta'])[..., 0]
+            if self.use_hyperprior:
+                # Top-level (unconstrained variance) priors
+                log_prob_beta_prior_scale = td.Cauchy(
+                    loc=0.0,
+                    scale=5.0
+                ).log_prob(out['beta_prior_scale'])[..., 0]
+                log_prob_alpha_prior_scale = td.Cauchy(
+                    loc=0.0,
+                    scale=5.0
+                ).log_prob(out['alpha_prior_scale'])[..., 0]
+                log_prob_delta_prior_scale = td.Cauchy(
+                    loc=0.0,
+                    scale=5.0
+                ).log_prob(out['delta_prior_scale'])[..., 0]
 
-            out['log_prior'] = (
-                log_prob_beta
-                + log_prob_alpha
-                + log_prob_delta
-                + log_det
-            )
+                # Bottom-level priors
+                log_prob_beta = td.Independent(
+                    td.Normal(
+                        loc=0.0,
+                        scale=out['beta_prior_scale']
+                    ),
+                    reinterpreted_batch_ndims=1
+                ).log_prob(out['beta'])
+                log_prob_alpha = td.Independent(
+                    td.Normal(
+                        loc=0.0,
+                        scale=out['alpha_prior_scale']
+                    ),
+                    reinterpreted_batch_ndims=1
+                ).log_prob(out['alpha'])
+                log_prob_delta = td.Independent(
+                    td.Normal(
+                        loc=0.0,
+                        scale=out['delta_prior_scale']
+                    ),
+                    reinterpreted_batch_ndims=1
+                ).log_prob(out['delta'])
+
+                out['log_prior'] = (
+                    log_prob_beta_prior_scale
+                    + log_prob_alpha_prior_scale
+                    + log_prob_delta_prior_scale
+                    + log_prob_beta
+                    + log_prob_alpha
+                    + log_prob_delta
+                    + log_det
+                )
+            else:
+                log_prob_beta = td.Normal(
+                    loc=0.0,
+                    scale=1.0
+                ).log_prob(out['beta']).sum(dim=-1)
+                log_prob_alpha = td.Normal(
+                    loc=0.0,
+                    scale=1.0
+                ).log_prob(out['alpha']).sum(dim=-1)
+                log_prob_delta = td.Normal(
+                    loc=3 / 4,
+                    scale=1.0
+                ).log_prob(out['delta'])[..., 0]
+
+                out['log_prior'] = (
+                    log_prob_beta
+                    + log_prob_alpha
+                    + log_prob_delta
+                    + log_det
+                )
 
         return out
 
