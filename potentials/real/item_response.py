@@ -4,9 +4,8 @@ from typing import Dict
 
 import torch
 import torch.distributions as td
-from potentials.real.posterior_base import Posterior1D
-from potentials.real.posterior_util import ParameterSet1D, ParameterScalar, ParameterVector
-from potentials.utils import reduce_two_key_dataset, sum_except_batch
+from potentials.real.posterior.base import Posterior1D
+from potentials.real.posterior.parameter import ParameterDAG, ParameterScalar, ParameterVector
 import urllib.request
 
 
@@ -55,24 +54,68 @@ class SyntheticItemResponseTheory(Posterior1D):
 
         if use_hyperprior:
             super().__init__(
-                event_shape=(504,),
-                posterior_parameters=ParameterSet1D({
-                    'beta': ParameterVector(400),
-                    'alpha': ParameterVector(100),
-                    'delta': ParameterScalar(),
-                    'beta_prior_scale': ParameterScalar('positive'),
-                    'alpha_prior_scale': ParameterScalar('positive'),
-                    'delta_prior_scale': ParameterScalar('positive'),
-                })
+                posterior_parameters=ParameterDAG(
+                    {
+                        'beta_prior_scale': ParameterScalar(
+                            bound='positive',
+                            prior=td.Cauchy(0.0, 5.0)
+                        ),
+                        'alpha_prior_scale': ParameterScalar(
+                            bound='positive',
+                            prior=td.Cauchy(0.0, 5.0)
+                        ),
+                        'delta_prior_scale': ParameterScalar(
+                            bound='positive',
+                            prior=td.Cauchy(0.0, 5.0)
+                        ),
+                        'beta': ParameterVector(
+                            400,
+                            prior=td.Normal,
+                            prior_kwargs={
+                                'loc': 0.0,
+                                'scale': (lambda beta_prior_scale, **kwargs: beta_prior_scale)
+                            }
+                        ),
+                        'alpha': ParameterVector(
+                            100,
+                            prior=td.Normal,
+                            prior_kwargs={
+                                'loc': 0.0,
+                                'scale': (lambda alpha_prior_scale, **kwargs: alpha_prior_scale)
+                            }
+                        ),
+                        'delta': ParameterScalar(
+                            prior=td.Normal,
+                            prior_kwargs={
+                                'loc': 0.0,
+                                'scale': (lambda delta_prior_scale, **kwargs: delta_prior_scale)
+                            }
+                        ),
+                    },
+                    [
+                        ('beta_prior_scale', 'beta'),
+                        ('alpha_prior_scale', 'alpha'),
+                        ('delta_prior_scale', 'delta'),
+                    ]
+                )
             )
         else:
             super().__init__(
-                event_shape=(501,),
-                posterior_parameters=ParameterSet1D({
-                    'beta': ParameterVector(400),
-                    'alpha': ParameterVector(100),
-                    'delta': ParameterScalar(),
-                })
+                posterior_parameters=ParameterDAG(
+                    {
+                        'beta': ParameterVector(
+                            400,
+                            prior=td.Normal(0.0, 1.0)
+                        ),
+                        'alpha': ParameterVector(
+                            100,
+                            prior=td.Normal(0.0, 1.0)
+                        ),
+                        'delta': ParameterScalar(
+                            prior=td.Normal(0.0, 3/4)
+                        ),
+                    }
+                )
             )
 
     def extract_parameters(self,

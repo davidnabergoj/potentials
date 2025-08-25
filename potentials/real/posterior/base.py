@@ -1,5 +1,5 @@
 from potentials.base import Potential
-from potentials.real.posterior_util import ParameterSet1D
+from potentials.real.posterior.parameter import ParameterDAG
 
 
 import torch
@@ -10,9 +10,13 @@ from typing import Dict, List, Tuple
 
 
 class Posterior1D(Potential):
-    def __init__(self, event_shape, posterior_parameters: ParameterSet1D):
+    def __init__(self, posterior_parameters: ParameterDAG):
+        event_size = sum([
+            p.size 
+            for p in posterior_parameters.parameters.values()
+        ])
+        event_shape = (event_size,)
         super().__init__(event_shape)
-        # TODO infer event shape from posterior parameters
         self.posterior_parameters = posterior_parameters
 
     @property
@@ -68,7 +72,15 @@ class Posterior1D(Potential):
         :return: dictionary where keys correspond to constrained inputs or their likelihoods and values are the 
          associated tensors.
         """
-        raise NotImplementedError
+        out, log_det = self.posterior_parameters.constrain(
+            unconstrained
+        )
+
+        # Compute prior probabilities
+        if return_log_probs:
+            log_prior_without_log_det = self.posterior_parameters.log_prior_without_log_det(out)
+            out['log_prior'] = log_prior_without_log_det + log_det
+        return out
 
     def posterior_predictive_draws(self,
                                    unconstrained_posterior_draws: torch.Tensor,

@@ -1,14 +1,14 @@
 from typing import Dict
 import numpy as np
 
-from potentials.real.posterior_base import Posterior1D
+from potentials.real.posterior.base import Posterior1D
 import torch
 from pathlib import Path
 import urllib.request
 import zipfile
 import torch.distributions as td
 
-from potentials.real.posterior_util import ParameterSet1D, ParameterVector, ParameterScalar
+from potentials.real.posterior.parameter import ParameterDAG, ParameterVector, ParameterScalar
 from potentials.transformations import bound_parameter, bound_positive
 
 
@@ -62,68 +62,52 @@ class GermanCredit(Posterior1D):
 
         if use_hyperprior:
             super().__init__(
-                event_shape=(27,),
-                posterior_parameters=ParameterSet1D({
-                    'tau': ParameterScalar('positive'),
-                    'beta': ParameterVector(25),
-                    'beta_prior_scale': ParameterScalar('positive')
-                })
+                posterior_parameters=ParameterDAG(
+                    {
+                        'tau': ParameterScalar(
+                            bound='positive',
+                            prior=td.Gamma(
+                                concentration=0.5,
+                                rate=0.5
+                            )
+                        ),
+                        'beta': ParameterVector(
+                            25,
+                            prior=td.Normal,
+                            prior_kwargs={
+                                'loc': torch.zeros(25),
+                                'scale': (lambda beta_prior_scale, **kwargs: beta_prior_scale)
+                            }
+                        ),
+                        'beta_prior_scale': ParameterScalar(
+                            bound='positive',
+                            prior=td.Cauchy(
+                                loc=0.0,
+                                scale=5.0
+                            )
+                        )
+                    },
+                    [
+                        ('beta_prior_scale', 'beta')
+                    ]
+                )
             )
         else:
             super().__init__(
-                event_shape=(26,),
-                posterior_parameters=ParameterSet1D({
-                    'tau': ParameterScalar('positive'),
-                    'beta': ParameterVector(25),
+                posterior_parameters=ParameterDAG({
+                    'tau': ParameterScalar(
+                        bound='positive',
+                        prior=td.Gamma(
+                            concentration=0.5,
+                            rate=0.5
+                        )
+                    ),
+                    'beta': ParameterVector(
+                        25,
+                        prior=td.Normal(0.0, 1.0)
+                    ),
                 })
             )
-
-    def extract_parameters(self,
-                           unconstrained: torch.Tensor,
-                           return_log_probs: bool = True) -> Dict[str, torch.Tensor]:
-        # (mu_a, log_sigma_a, log_sigma_y, a, b)
-        out, log_det = self.posterior_parameters.constrain(
-            unconstrained
-        )
-
-        # Compute prior probabilities
-        if return_log_probs:
-            log_prob_tau = td.Gamma(0.5, 0.5).log_prob(
-                out['tau']
-            )[..., 0]
-
-            if self.use_hyperprior:
-                log_prob_beta_prior_scale = td.Cauchy(
-                    loc=0.0,
-                    scale=5.0
-                ).log_prob(out['beta_prior_scale'])[..., 0]
-                log_prob_beta = td.Independent(
-                    td.Normal(
-                        loc=0.0,
-                        scale=out['beta_prior_scale']
-                    ),
-                    reinterpreted_batch_ndims=1
-                ).log_prob(out['beta'])
-
-                out['log_prior'] = (
-                    log_prob_tau
-                    + log_prob_beta
-                    + log_prob_beta_prior_scale
-                    + log_det
-                )
-
-            else:
-                log_prob_beta = td.Normal(0.0, 1.0).log_prob(
-                    out['beta']
-                ).sum(dim=-1)
-
-                out['log_prior'] = (
-                    log_prob_tau
-                    + log_prob_beta
-                    + log_det
-                )
-
-        return out
 
     def likelihood_object(self,
                           extracted: Dict[str, torch.Tensor]):
@@ -191,73 +175,65 @@ class SparseGermanCredit(Posterior1D):
 
         if self.use_hyperprior:
             super().__init__(
-                event_shape=(52,),
-                posterior_parameters=ParameterSet1D({
-                    'tau': ParameterScalar('positive'),
-                    'beta': ParameterVector(25),
-                    'lambda': ParameterVector(25, 'positive'),
-                    'beta_prior_scale': ParameterScalar('positive')
-                })
+                posterior_parameters=ParameterDAG(
+                    {
+                        'tau': ParameterScalar(
+                            bound='positive',
+                            prior=td.Gamma(
+                                concentration=0.5,
+                                rate=0.5
+                            )
+                        ),
+                        'beta': ParameterVector(
+                            25,
+                            prior=td.Normal,
+                            prior_kwargs={
+                                'loc': torch.zeros(25),
+                                'scale': (lambda beta_prior_scale, **kwargs: beta_prior_scale)
+                            }
+                        ),
+                        'lambda': ParameterVector(
+                            25,
+                            bound='positive',
+                            prior=td.Gamma(0.5, 0.5)
+                        ),
+                        'beta_prior_scale': ParameterScalar(
+                            bound='positive',
+                            prior=td.Cauchy(
+                                loc=0.0,
+                                scale=5.0
+                            )
+                        )
+                    },
+                    [
+                        ('beta_prior_scale', 'beta')
+                    ]
+                )
             )
         else:
             super().__init__(
-                event_shape=(51,),
-                posterior_parameters=ParameterSet1D({
-                    'tau': ParameterScalar('positive'),
-                    'beta': ParameterVector(25),
-                    'lambda': ParameterVector(25, 'positive')
+                posterior_parameters=ParameterDAG({
+                    'tau': ParameterScalar(
+                        bound='positive',
+                        prior=td.Gamma(
+                            concentration=0.5,
+                            rate=0.5
+                        )
+                    ),
+                    'beta': ParameterVector(
+                        25,
+                        prior=td.Normal(
+                            loc=0.0,
+                            scale=1.0
+                        )
+                    ),
+                    'lambda': ParameterVector(
+                        25,
+                        bound='positive',
+                        prior=td.Gamma(0.5, 0.5)
+                    ),
                 })
             )
-
-    def extract_parameters(self,
-                           unconstrained: torch.Tensor,
-                           return_log_probs: bool = True) -> Dict[str, torch.Tensor]:
-        # (mu_a, log_sigma_a, log_sigma_y, a, b)
-        out, log_det = self.posterior_parameters.constrain(
-            unconstrained
-        )
-
-        # Compute prior probabilities
-        if return_log_probs:
-            log_prob_tau = td.Gamma(0.5, 0.5).log_prob(out['tau'])[..., 0]
-            log_prob_lambda = td.Gamma(0.5, 0.5).log_prob(
-                out['lambda']
-            ).sum(dim=-1)
-
-            if self.use_hyperprior:
-                log_prob_beta_prior_scale = td.Cauchy(
-                    loc=0.0,
-                    scale=5.0
-                ).log_prob(out['beta_prior_scale'])[..., 0]
-                log_prob_beta = td.Independent(
-                    td.Normal(
-                        loc=0.0,
-                        scale=out['beta_prior_scale']
-                    ),
-                    reinterpreted_batch_ndims=1
-                ).log_prob(out['beta'])
-
-                out['log_prior'] = (
-                    log_prob_tau
-                    + log_prob_beta
-                    + log_prob_lambda
-                    + log_prob_beta_prior_scale
-                    + log_det
-                )
-
-            else:
-                log_prob_beta = td.Normal(
-                    loc=0.0, scale=1.0
-                ).log_prob(out['beta']).sum(dim=-1)
-
-                out['log_prior'] = (
-                    log_prob_tau
-                    + log_prob_beta
-                    + log_prob_lambda
-                    + log_det
-                )
-
-        return out
 
     def likelihood_object(self,
                           extracted: Dict[str, torch.Tensor]):

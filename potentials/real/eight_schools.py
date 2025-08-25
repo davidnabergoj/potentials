@@ -5,8 +5,8 @@ from pathlib import Path
 
 import torch
 import torch.distributions as td
-from potentials.real.posterior_base import Posterior1D
-from potentials.real.posterior_util import ParameterSet1D, ParameterScalar, ParameterVector
+from potentials.real.posterior.base import Posterior1D
+from potentials.real.posterior.parameter import ParameterScalar, ParameterVector, ParameterDAG
 from potentials.transformations import bound_parameter
 
 
@@ -31,47 +31,20 @@ class EightSchools(Posterior1D):
         self.scales = torch.tensor(data['sigma'], dtype=torch.float)  # (8,)
 
         super().__init__(
-            event_shape=(10,),
-            posterior_parameters=ParameterSet1D({
-                'mu': ParameterScalar(),
-                'tau': ParameterScalar('positive'),
-                'theta_prime': ParameterVector(8),
+            posterior_parameters=ParameterDAG({
+                'mu': ParameterScalar(
+                    prior=td.Normal(0.0, 10.0)
+                ),
+                'tau': ParameterScalar(
+                    bound='positive',
+                    prior=td.LogNormal(5.0, 1.0)
+                ),
+                'theta_prime': ParameterVector(
+                    8,
+                    prior=td.Normal(0.0, 1.0)
+                ),
             })
         )
-
-    def extract_parameters(self,
-                           unconstrained: torch.Tensor,
-                           return_log_probs: bool = True) -> Dict[str, torch.Tensor]:
-        # (mu_a, log_sigma_a, log_sigma_y, a, b)
-        out, log_det = self.posterior_parameters.constrain(
-            unconstrained
-        )
-
-        # Compute prior probabilities
-        if return_log_probs:
-            log_prob_mu = td.Normal(
-                loc=0.0,
-                scale=10.0
-            ).log_prob(out['mu'])[..., 0]
-            log_prob_tau = td.LogNormal(
-                loc=5.0,
-                scale=1.0
-            ).log_prob(out['tau'])[..., 0]
-            log_prob_theta_prime = td.Normal(
-                loc=0.0,
-                scale=1.0
-            ).log_prob(
-                out['theta_prime']
-            ).sum(dim=-1)
-
-            out['log_prior'] = (
-                log_prob_mu
-                + log_prob_tau
-                + log_prob_theta_prime
-                + log_det
-            )
-
-        return out
 
     def likelihood_object(self,
                           extracted: Dict[str, torch.Tensor]):

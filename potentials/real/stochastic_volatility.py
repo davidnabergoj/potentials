@@ -6,8 +6,8 @@ from typing import Dict
 import torch
 import torch.distributions as td
 
-from potentials.real.posterior_base import Posterior1D
-from potentials.real.posterior_util import ParameterSet1D, ParameterVector, ParameterScalar
+from potentials.real.posterior.base import Posterior1D
+from potentials.real.posterior.parameter import ParameterDAG, ParameterVector, ParameterScalar
 
 
 class StochasticVolatilityModel(Posterior1D):
@@ -38,78 +38,65 @@ class StochasticVolatilityModel(Posterior1D):
         self.n_measurements = len(self.measurements)
         self._modified = self.n_measurements != 2517
 
-        super().__init__(
-            event_shape=(self.n_measurements + 3,),
-            posterior_parameters=ParameterSet1D({
-                'z': ParameterVector(self.n_measurements),
-                'sigma': ParameterScalar('positive'),
-                'mu': ParameterScalar('positive'),
-                'phi_prime': ParameterScalar((0, 1)),
-            })
-        )
-
-    def extract_parameters(self,
-                           unconstrained: torch.Tensor,
-                           return_log_probs: bool = True) -> Dict[str, torch.Tensor]:
-        # (mu_a, log_sigma_a, log_sigma_y, a, b)
-        out, log_det = self.posterior_parameters.constrain(
-            unconstrained
-        )
-
-        batch_shape = unconstrained.shape[:-1]
-
-        out['phi'] = out['phi_prime'] * 2 - 1
-        out['h'] = torch.zeros(
-            size=(*batch_shape, self.n_measurements),
-            device=unconstrained.device,
-            dtype=unconstrained.dtype
-        )
-        out['h'][..., 0] = (
-            out['mu']
-            + (
-                out['sigma'] * out['z'][..., [0]]
-                / torch.sqrt(1 - out['phi'] ** 2)
+        def compute_h(mu, sigma, phi, z):
+            batch_shape = z.shape[:-1]
+            h = torch.zeros(
+                size=(*batch_shape, self.n_measurements),
+                device=z.device,
+                dtype=z.dtype
             )
-        )[..., 0]
-        for i in range(1, self.n_measurements):
-            out['h'][..., i] = (
-                out['mu']
+            h[..., 0] = (
+                mu
                 + (
-                    out['sigma']
-                    * out['z'][..., [i]] + out['phi']
-                    * (
-                        out['h'][..., [i - 1]]
-                        - out['mu']
-                    )
+                    sigma * z[..., [0]]
+                    / torch.sqrt(1 - phi ** 2)
                 )
             )[..., 0]
+            for i in range(1, self.n_measurements):
+                h[..., i] = (
+                    mu
+                    + (
+                        sigma
+                        * z[..., [i]] + phi
+                        * (
+                            h[..., [i - 1]] - mu
+                        )
+                    )
+                )[..., 0]
+            return h
 
-        # Compute prior probabilities
-        if return_log_probs:
-            log_prob_z = td.Normal(
-                loc=0.0,
-                scale=1.0
-            ).log_prob(out['z']).sum(dim=-1)
-            log_prob_sigma = td.HalfCauchy(
-                scale=2.0
-            ).log_prob(out['sigma'])[..., 0]
-            log_prob_mu = td.Exponential(
-                rate=1.0
-            ).log_prob(out['mu'])[..., 0]
-            log_prob_phi_prime = td.Beta(
-                concentration0=20.0,
-                concentration1=1.5
-            ).log_prob(out['phi_prime'])[..., 0]
-
-            out['log_prior'] = (
-                log_prob_z
-                + log_prob_sigma
-                + log_prob_mu
-                + log_prob_phi_prime
-                + log_det
+        super().__init__(
+            posterior_parameters=ParameterDAG(
+                {
+                    'z': ParameterVector(
+                        self.n_measurements,
+                        prior=td.Normal(0.0, 1.0)
+                    ),
+                    'sigma': ParameterScalar(
+                        bound='positive',
+                        prior=td.HalfCauchy(scale=2.0)
+                    ),
+                    'mu': ParameterScalar(
+                        bound='positive',
+                        prior=td.Exponential(rate=1.0)
+                    ),
+                    'phi_prime': ParameterScalar(
+                        bound=(0, 1),
+                        prior=td.Beta(
+                            concentration0=20.0,
+                            concentration1=1.5
+                        )
+                    ),
+                },
+                additional_parameters={
+                    'phi': (lambda phi_prime, **kwargs: phi_prime * 2 - 1),
+                    'h': (
+                        lambda mu, sigma, phi, z, **kwargs:
+                        compute_h(mu, sigma, phi, z)
+                    )
+                }
             )
-
-        return out
+        )
 
     def likelihood_object(self,
                           extracted: Dict[str, torch.Tensor]):

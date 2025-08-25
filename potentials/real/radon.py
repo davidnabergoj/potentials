@@ -4,11 +4,11 @@ from urllib.request import urlretrieve
 import zipfile
 import json
 
-from potentials.real.posterior_base import Posterior1D
+from potentials.real.posterior.base import Posterior1D
 import torch
 import torch.distributions as td
 
-from potentials.real.posterior_util import ParameterSet1D, ParameterScalar, ParameterVector
+from potentials.real.posterior.parameter import ParameterDAG, ParameterScalar, ParameterVector
 
 
 # https://www.tensorflow.org/probability/examples/Multilevel_Modeling_Primer
@@ -74,57 +74,47 @@ class RadonVaryingSlopes(Posterior1D):
         self.n_counties = n_counties
         self._modified = n_data is not None
         super().__init__(
-            event_shape=(4 + n_counties,),
-            posterior_parameters=ParameterSet1D({
-                'mu_a': ParameterScalar(),
-                'sigma_a': ParameterScalar('positive'),
-                'sigma_y': ParameterScalar('positive'),
-                'a': ParameterVector(self.n_counties),
-                'b': ParameterScalar(),
-            })
-        )
-
-    def extract_parameters(self,
-                           unconstrained: torch.Tensor,
-                           return_log_probs: bool = True) -> Dict[str, torch.Tensor]:
-        # (mu_a, log_sigma_a, log_sigma_y, a, b)
-        out, log_det = self.posterior_parameters.constrain(
-            unconstrained
-        )
-
-        # Compute prior probabilities
-        if return_log_probs:
-            log_prob_mu_a = td.Normal(
-                loc=0,
-                scale=1e5
-            ).log_prob(out['mu_a'])[..., 0]
-            log_prob_b = td.Normal(
-                loc=0,
-                scale=1e5
-            ).log_prob(out['b'])[..., 0]
-            log_prob_sigma_a = td.HalfCauchy(
-                scale=5
-            ).log_prob(out['sigma_a'])[..., 0]
-            log_prob_sigma_y = td.HalfCauchy(
-                scale=5
-            ).log_prob(out['sigma_y'])[..., 0]
-            log_prob_a = td.Independent(
-                td.Normal(
-                    out['mu_a'],
-                    out['sigma_a']),
-                1
-            ).log_prob(out['a'])
-
-            out['log_prior'] = (
-                log_prob_mu_a
-                + log_prob_b
-                + log_prob_sigma_a
-                + log_prob_sigma_y
-                + log_prob_a
-                + log_det
+            posterior_parameters=ParameterDAG(
+                {
+                    'mu_a': ParameterScalar(
+                        prior=td.Normal(
+                            loc=0,
+                            scale=1e5
+                        )
+                    ),
+                    'sigma_a': ParameterScalar(
+                        bound='positive',
+                        prior=td.HalfCauchy(
+                            scale=5
+                        )
+                    ),
+                    'sigma_y': ParameterScalar(
+                        bound='positive',
+                        prior=td.HalfCauchy(
+                            scale=5
+                        )
+                    ),
+                    'a': ParameterVector(
+                        self.n_counties,
+                        prior=td.Normal,
+                        prior_kwargs={
+                            'loc': (lambda mu_a, **kwargs: mu_a),
+                            'scale': (lambda sigma_a, **kwargs: sigma_a)
+                        }
+                    ),
+                    'b': ParameterScalar(
+                        prior=td.Normal(
+                            loc=0,
+                            scale=1e5
+                        )
+                    ),
+                },
+                [
+                    ('mu_a', 'a'),
+                    ('sigma_a', 'a'),
+                ]
             )
-
-        return out
+        )
 
     def likelihood_object(self,
                           extracted: Dict[str, torch.Tensor]):
@@ -190,56 +180,46 @@ class RadonVaryingIntercepts(Posterior1D):
         self.n_counties = n_counties
         self._modified = n_data is not None
         super().__init__(
-            event_shape=(4 + n_counties,),
-            posterior_parameters=ParameterSet1D({
-                'mu_b': ParameterScalar(),
-                'sigma_b': ParameterScalar('positive'),
-                'sigma_y': ParameterScalar('positive'),
-                'a': ParameterScalar(),
-                'b': ParameterVector(self.n_counties),
-            }))
-
-    def extract_parameters(self,
-                           unconstrained: torch.Tensor,
-                           return_log_probs: bool = True) -> Dict[str, torch.Tensor]:
-        # (mu_b, log_sigma_b, log_sigma_y, a, b)
-        out, log_det = self.posterior_parameters.constrain(
-            unconstrained
-        )
-
-        # Compute log prior
-        if return_log_probs:
-            log_prob_mu_b = td.Normal(
-                loc=0,
-                scale=1e5
-            ).log_prob(out['mu_b'])[..., 0]
-            log_prob_a = td.Normal(
-                loc=0,
-                scale=1e5
-            ).log_prob(out['a'])[..., 0]
-            log_prob_sigma_b = td.HalfCauchy(
-                scale=5
-            ).log_prob(out['sigma_b'])[..., 0]
-            log_prob_sigma_y = td.HalfCauchy(
-                scale=5
-            ).log_prob(out['sigma_y'])[..., 0]
-            log_prob_b = td.Independent(
-                td.Normal(
-                    out['mu_b'],
-                    out['sigma_b']),
-                1
-            ).log_prob(out['b'])
-
-            out['log_prior'] = (
-                log_prob_mu_b
-                + log_prob_sigma_b
-                + log_prob_sigma_y
-                + log_prob_a
-                + log_prob_b
-                + log_det
-            )
-
-        return out
+            posterior_parameters=ParameterDAG(
+                {
+                    'mu_b': ParameterScalar(
+                        prior=td.Normal(
+                            loc=0,
+                            scale=1e5
+                        )
+                    ),
+                    'sigma_b': ParameterScalar(
+                        bound='positive',
+                        prior=td.HalfCauchy(
+                            scale=5
+                        )
+                    ),
+                    'sigma_y': ParameterScalar(
+                        bound='positive',
+                        prior=td.HalfCauchy(
+                            scale=5
+                        )
+                    ),
+                    'a': ParameterScalar(
+                        prior=td.Normal(
+                            loc=0,
+                            scale=1e5
+                        )
+                    ),
+                    'b': ParameterVector(
+                        self.n_counties,
+                        prior=td.Normal,
+                        prior_kwargs={
+                            'loc': (lambda mu_b, **kwargs: mu_b),
+                            'scale': (lambda sigma_b, **kwargs: sigma_b)
+                        }
+                    ),
+                },
+                [
+                    ('mu_b', 'b'),
+                    ('sigma_b', 'b'),
+                ]
+            ))
 
     def likelihood_object(self, extracted):
         batch_shape = extracted['b'].shape[:-1]
@@ -304,70 +284,63 @@ class RadonVaryingInterceptsAndSlopes(Posterior1D):
         self.n_counties = n_counties
         self._modified = n_data is not None
         super().__init__(
-            event_shape=(5 + 2 * n_counties,),
-            posterior_parameters=ParameterSet1D({
-                'mu_a': ParameterScalar(),
-                'sigma_a': ParameterScalar('positive'),
-                'mu_b': ParameterScalar(),
-                'sigma_b': ParameterScalar('positive'),
-                'sigma_y': ParameterScalar('positive'),
-                'a': ParameterVector(self.n_counties),
-                'b': ParameterVector(self.n_counties),
-            })
-        )
-
-    def extract_parameters(self, unconstrained, return_log_probs=True):
-        # (mu_a, log_sigma_a, mu_b, log_sigma_b, log_sigma_y, a, b)
-        out, log_det = self.posterior_parameters.constrain(
-            unconstrained
-        )
-
-        # Compute log prior
-        if return_log_probs:
-            log_prob_mu_a = td.Normal(
-                loc=0,
-                scale=1e5
-            ).log_prob(out['mu_a'])[..., 0]
-            log_prob_sigma_a = td.HalfCauchy(
-                scale=5
-            ).log_prob(out['sigma_a'])[..., 0]
-            log_prob_mu_b = td.Normal(
-                loc=0,
-                scale=1e5
-            ).log_prob(out['mu_b'])[..., 0]
-            log_prob_sigma_b = td.HalfCauchy(
-                scale=5
-            ).log_prob(out['sigma_b'])[..., 0]
-            log_prob_sigma_y = td.HalfCauchy(
-                scale=5
-            ).log_prob(out['sigma_y'])[..., 0]
-            log_prob_a = td.Independent(
-                td.Normal(
-                    out['mu_a'],
-                    out['sigma_a']
-                ),
-                1
-            ).log_prob(out['a'])
-            log_prob_b = td.Independent(
-                td.Normal(
-                    out['mu_b'],
-                    out['sigma_b']
-                ),
-                1
-            ).log_prob(out['b'])
-
-            out['log_prior'] = (
-                log_prob_mu_a
-                + log_prob_sigma_a
-                + log_prob_mu_b
-                + log_prob_sigma_b
-                + log_prob_sigma_y
-                + log_prob_a
-                + log_prob_b
-                + log_det
+            posterior_parameters=ParameterDAG(
+                {
+                    'mu_a': ParameterScalar(
+                        prior=td.Normal(
+                            loc=0,
+                            scale=1e5
+                        )
+                    ),
+                    'sigma_a': ParameterScalar(
+                        bound='positive',
+                        prior=td.HalfCauchy(
+                            scale=5
+                        )
+                    ),
+                    'mu_b': ParameterScalar(
+                        prior=td.Normal(
+                            loc=0,
+                            scale=1e5
+                        )
+                    ),
+                    'sigma_b': ParameterScalar(
+                        bound='positive',
+                        prior=td.HalfCauchy(
+                            scale=5
+                        )
+                    ),
+                    'sigma_y': ParameterScalar(
+                        bound='positive',
+                        prior=td.HalfCauchy(
+                            scale=5
+                        )
+                    ),
+                    'a': ParameterVector(
+                        self.n_counties,
+                        prior=td.Normal,
+                        prior_kwargs={
+                            'loc': (lambda mu_a, **kwargs: mu_a),
+                            'scale': (lambda sigma_a, **kwargs: sigma_a)
+                        }
+                    ),
+                    'b': ParameterVector(
+                        self.n_counties,
+                        prior=td.Normal,
+                        prior_kwargs={
+                            'loc': (lambda mu_b, **kwargs: mu_b),
+                            'scale': (lambda sigma_b, **kwargs: sigma_b)
+                        }
+                    ),
+                },
+                [
+                    ('mu_a', 'a'),
+                    ('sigma_a', 'a'),
+                    ('mu_b', 'b'),
+                    ('sigma_b', 'b'),
+                ]
             )
-
-        return out
+        )
 
     def likelihood_object(self, extracted):
         batch_shape = extracted['a'].shape[:-1]
