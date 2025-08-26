@@ -73,7 +73,7 @@ class SyntheticItemResponseTheory(Posterior1D):
                             prior=td.Normal,
                             prior_kwargs={
                                 'loc': 0.0,
-                                'scale': (lambda beta_prior_scale, **kwargs: beta_prior_scale)
+                                'scale': 'beta_prior_scale'
                             }
                         ),
                         'alpha': ParameterVector(
@@ -81,14 +81,14 @@ class SyntheticItemResponseTheory(Posterior1D):
                             prior=td.Normal,
                             prior_kwargs={
                                 'loc': 0.0,
-                                'scale': (lambda alpha_prior_scale, **kwargs: alpha_prior_scale)
+                                'scale': 'alpha_prior_scale'
                             }
                         ),
                         'delta': ParameterScalar(
                             prior=td.Normal,
                             prior_kwargs={
                                 'loc': 0.0,
-                                'scale': (lambda delta_prior_scale, **kwargs: delta_prior_scale)
+                                'scale': 'delta_prior_scale'
                             }
                         ),
                     },
@@ -117,86 +117,6 @@ class SyntheticItemResponseTheory(Posterior1D):
                     }
                 )
             )
-
-    def extract_parameters(self,
-                           unconstrained: torch.Tensor,
-                           return_log_probs: bool = True) -> Dict[str, torch.Tensor]:
-        # (mu_a, log_sigma_a, log_sigma_y, a, b)
-        out, log_det = self.posterior_parameters.constrain(
-            unconstrained
-        )
-
-        # Compute prior probabilities
-        if return_log_probs:
-            if self.use_hyperprior:
-                # Top-level (unconstrained variance) priors
-                log_prob_beta_prior_scale = td.Cauchy(
-                    loc=0.0,
-                    scale=5.0
-                ).log_prob(out['beta_prior_scale'])[..., 0]
-                log_prob_alpha_prior_scale = td.Cauchy(
-                    loc=0.0,
-                    scale=5.0
-                ).log_prob(out['alpha_prior_scale'])[..., 0]
-                log_prob_delta_prior_scale = td.Cauchy(
-                    loc=0.0,
-                    scale=5.0
-                ).log_prob(out['delta_prior_scale'])[..., 0]
-
-                # Bottom-level priors
-                log_prob_beta = td.Independent(
-                    td.Normal(
-                        loc=0.0,
-                        scale=out['beta_prior_scale']
-                    ),
-                    reinterpreted_batch_ndims=1
-                ).log_prob(out['beta'])
-                log_prob_alpha = td.Independent(
-                    td.Normal(
-                        loc=0.0,
-                        scale=out['alpha_prior_scale']
-                    ),
-                    reinterpreted_batch_ndims=1
-                ).log_prob(out['alpha'])
-                log_prob_delta = td.Independent(
-                    td.Normal(
-                        loc=0.0,
-                        scale=out['delta_prior_scale']
-                    ),
-                    reinterpreted_batch_ndims=1
-                ).log_prob(out['delta'])
-
-                out['log_prior'] = (
-                    log_prob_beta_prior_scale
-                    + log_prob_alpha_prior_scale
-                    + log_prob_delta_prior_scale
-                    + log_prob_beta
-                    + log_prob_alpha
-                    + log_prob_delta
-                    + log_det
-                )
-            else:
-                log_prob_beta = td.Normal(
-                    loc=0.0,
-                    scale=1.0
-                ).log_prob(out['beta']).sum(dim=-1)
-                log_prob_alpha = td.Normal(
-                    loc=0.0,
-                    scale=1.0
-                ).log_prob(out['alpha']).sum(dim=-1)
-                log_prob_delta = td.Normal(
-                    loc=3 / 4,
-                    scale=1.0
-                ).log_prob(out['delta'])[..., 0]
-
-                out['log_prior'] = (
-                    log_prob_beta
-                    + log_prob_alpha
-                    + log_prob_delta
-                    + log_det
-                )
-
-        return out
 
     def likelihood_object(self,
                           extracted: Dict[str, torch.Tensor]):

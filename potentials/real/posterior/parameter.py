@@ -14,7 +14,7 @@ class Parameter1D:
     def __init__(self,
                  size: int,
                  prior: Union[td.Distribution, Type[td.Distribution]],
-                 prior_kwargs: Dict[str, Union[Callable, torch.Tensor]] = None,
+                 prior_kwargs: Dict[str, Union[Callable, torch.Tensor, str]] = None,
                  bound: Union[str, Tuple[float, float]] = None):
         """
         Initialize a 1D parameter with a given prior distribution.
@@ -95,6 +95,8 @@ class Parameter1D:
             for key, value in self.prior_kwargs.items():
                 if isinstance(value, Callable):
                     prior_kwargs[key] = value(**kwargs)
+                elif isinstance(value, str):
+                    prior_kwargs[key] = kwargs[value]
                 else:
                     prior_kwargs[key] = value
             dist = self.prior(**prior_kwargs)

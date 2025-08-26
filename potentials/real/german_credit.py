@@ -64,6 +64,13 @@ class GermanCredit(Posterior1D):
             super().__init__(
                 posterior_parameters=ParameterDAG(
                     {
+                        'beta_prior_scale': ParameterScalar(
+                            bound='positive',
+                            prior=td.Cauchy(
+                                loc=0.0,
+                                scale=5.0
+                            )
+                        ),
                         'tau': ParameterScalar(
                             bound='positive',
                             prior=td.Gamma(
@@ -76,15 +83,8 @@ class GermanCredit(Posterior1D):
                             prior=td.Normal,
                             prior_kwargs={
                                 'loc': torch.zeros(25),
-                                'scale': (lambda beta_prior_scale, **kwargs: beta_prior_scale)
+                                'scale': 'beta_prior_scale'
                             }
-                        ),
-                        'beta_prior_scale': ParameterScalar(
-                            bound='positive',
-                            prior=td.Cauchy(
-                                loc=0.0,
-                                scale=5.0
-                            )
                         )
                     },
                     [
@@ -177,6 +177,13 @@ class SparseGermanCredit(Posterior1D):
             super().__init__(
                 posterior_parameters=ParameterDAG(
                     {
+                        'beta_prior_scale': ParameterScalar(
+                            bound='positive',
+                            prior=td.Cauchy(
+                                loc=0.0,
+                                scale=5.0
+                            )
+                        ),
                         'tau': ParameterScalar(
                             bound='positive',
                             prior=td.Gamma(
@@ -189,20 +196,13 @@ class SparseGermanCredit(Posterior1D):
                             prior=td.Normal,
                             prior_kwargs={
                                 'loc': torch.zeros(25),
-                                'scale': (lambda beta_prior_scale, **kwargs: beta_prior_scale)
+                                'scale': 'beta_prior_scale'
                             }
                         ),
                         'lambda': ParameterVector(
                             25,
                             bound='positive',
                             prior=td.Gamma(0.5, 0.5)
-                        ),
-                        'beta_prior_scale': ParameterScalar(
-                            bound='positive',
-                            prior=td.Cauchy(
-                                loc=0.0,
-                                scale=5.0
-                            )
                         )
                     },
                     [

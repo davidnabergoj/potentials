@@ -98,8 +98,8 @@ class RadonVaryingSlopes(Posterior1D):
                         self.n_counties,
                         prior=td.Normal,
                         prior_kwargs={
-                            'loc': (lambda mu_a, **kwargs: mu_a),
-                            'scale': (lambda sigma_a, **kwargs: sigma_a)
+                            'loc': 'mu_a',
+                            'scale': 'sigma_a'
                         }
                     ),
                     'b': ParameterScalar(
@@ -210,8 +210,8 @@ class RadonVaryingIntercepts(Posterior1D):
                         self.n_counties,
                         prior=td.Normal,
                         prior_kwargs={
-                            'loc': (lambda mu_b, **kwargs: mu_b),
-                            'scale': (lambda sigma_b, **kwargs: sigma_b)
+                            'loc': 'mu_b',
+                            'scale': 'sigma_b'
                         }
                     ),
                 },
@@ -320,16 +320,16 @@ class RadonVaryingInterceptsAndSlopes(Posterior1D):
                         self.n_counties,
                         prior=td.Normal,
                         prior_kwargs={
-                            'loc': (lambda mu_a, **kwargs: mu_a),
-                            'scale': (lambda sigma_a, **kwargs: sigma_a)
+                            'loc': 'mu_a',
+                            'scale': 'sigma_a'
                         }
                     ),
                     'b': ParameterVector(
                         self.n_counties,
                         prior=td.Normal,
                         prior_kwargs={
-                            'loc': (lambda mu_b, **kwargs: mu_b),
-                            'scale': (lambda sigma_b, **kwargs: sigma_b)
+                            'loc': 'mu_b',
+                            'scale': 'sigma_b'
                         }
                     ),
                 },
