@@ -67,17 +67,20 @@ class Parameter1D:
         self.parents: Dict[str, Parameter1D] = dict()
         self.prior_kwargs = prior_kwargs or None
 
-    def constrain_with_log_det(self, unconstrained: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def constrain_with_log_det(self, 
+                               unconstrained: torch.Tensor, 
+                               eps: float = 1e-8) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Return the constrained parameter and log Jacobian determinant of the transformation.
         """
         batch_shape = unconstrained.shape[:-1]
-        return bound_parameter(
+        output = bound_parameter(
             unconstrained,
             batch_shape=batch_shape,
-            low=self.lower_bound,
-            high=self.upper_bound
+            low=self.lower_bound + eps,
+            high=self.upper_bound - eps
         )
+        return output
 
     def log_prior_without_log_det(self, constrained: torch.Tensor, **kwargs):
         """
