@@ -84,14 +84,16 @@ class RadonVaryingSlopes(Posterior1D):
                     ),
                     'sigma_a': ParameterScalar(
                         bound='positive',
-                        prior=td.HalfCauchy(
-                            scale=5
+                        prior=td.LogNormal(
+                            loc=0,
+                            scale=10.0
                         )
                     ),
                     'sigma_y': ParameterScalar(
                         bound='positive',
-                        prior=td.HalfCauchy(
-                            scale=5
+                        prior=td.LogNormal(
+                            loc=0,
+                            scale=10.0
                         )
                     ),
                     'a': ParameterVector(
@@ -190,14 +192,16 @@ class RadonVaryingIntercepts(Posterior1D):
                     ),
                     'sigma_b': ParameterScalar(
                         bound='positive',
-                        prior=td.HalfCauchy(
-                            scale=5
+                        prior=td.LogNormal(
+                            loc=0,
+                            scale=10.0
                         )
                     ),
                     'sigma_y': ParameterScalar(
                         bound='positive',
-                        prior=td.HalfCauchy(
-                            scale=5
+                        prior=td.LogNormal(
+                            loc=0,
+                            scale=10.0
                         )
                     ),
                     'a': ParameterScalar(
@@ -294,8 +298,9 @@ class RadonVaryingInterceptsAndSlopes(Posterior1D):
                     ),
                     'sigma_a': ParameterScalar(
                         bound='positive',
-                        prior=td.HalfCauchy(
-                            scale=5
+                        prior=td.LogNormal(
+                            loc=0,
+                            scale=10.0
                         )
                     ),
                     'mu_b': ParameterScalar(
@@ -306,14 +311,16 @@ class RadonVaryingInterceptsAndSlopes(Posterior1D):
                     ),
                     'sigma_b': ParameterScalar(
                         bound='positive',
-                        prior=td.HalfCauchy(
-                            scale=5
+                        prior=td.LogNormal(
+                            loc=0,
+                            scale=10.0
                         )
                     ),
                     'sigma_y': ParameterScalar(
                         bound='positive',
-                        prior=td.HalfCauchy(
-                            scale=5
+                        prior=td.LogNormal(
+                            loc=0,
+                            scale=10.0
                         )
                     ),
                     'a': ParameterVector(

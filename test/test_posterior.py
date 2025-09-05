@@ -83,10 +83,11 @@ def test_posterior_predictive_draws(batch_shape, _class, n_draws):
 
 @pytest.mark.parametrize('batch_shape', [(1,), (2,), (17,), (2, 3, 7, 13)])
 @pytest.mark.parametrize('_class', _reduced_dataset)
-def test_reduced_dataset_compute(batch_shape, _class):
+@pytest.mark.parametrize('n_data', [0, 50])
+def test_reduced_dataset_compute(batch_shape, _class, n_data):
     torch.manual_seed(0)
 
-    u = _class(n_data=50)
+    u = _class(n_data=n_data)
     x = torch.rand(size=(*batch_shape, *u.event_shape)) * 2 - 1
 
     ret = u(x)
@@ -98,10 +99,11 @@ def test_reduced_dataset_compute(batch_shape, _class):
 
 @pytest.mark.parametrize('batch_shape', [(1,), (2,), (17,), (2, 3, 7, 13)])
 @pytest.mark.parametrize('_class', _reduced_dataset)
-def test_reduced_dataset_lppd(batch_shape, _class):
+@pytest.mark.parametrize('n_data', [0, 50])
+def test_reduced_dataset_lppd(batch_shape, _class, n_data):
     torch.manual_seed(0)
 
-    u = _class(n_data=50)
+    u = _class(n_data=n_data)
     x = torch.rand(size=(*batch_shape, *u.event_shape)) * 2 - 1
 
     lppd = u.normalized_log_posterior_predictive_density(x)
@@ -114,10 +116,11 @@ def test_reduced_dataset_lppd(batch_shape, _class):
 @pytest.mark.parametrize('batch_shape', [(1,), (2,), (17,), (2, 3, 7, 13)])
 @pytest.mark.parametrize('n_draws', [1, 2, 10])
 @pytest.mark.parametrize('_class', _reduced_dataset)
-def test_posterior_predictive_draws_reduced_dataset(batch_shape, _class, n_draws):
+@pytest.mark.parametrize('n_data', [0, 50])
+def test_posterior_predictive_draws_reduced_dataset(batch_shape, _class, n_draws, n_data):
     torch.manual_seed(0)
 
-    u = _class(n_data=50)
+    u = _class(n_data=n_data)
     x = torch.rand(size=(*batch_shape, *u.event_shape)) * 2 - 1
 
     ppd = u.posterior_predictive_draws(x, n_draws)

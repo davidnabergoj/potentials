@@ -50,7 +50,7 @@ class GermanCredit(Posterior1D):
         self.features, self.labels = load_german_credit()
 
         if n_data is not None:
-            if not 0 < n_data <= len(self.labels):
+            if not 0 <= n_data <= len(self.labels):
                 raise ValueError(
                     "Number of used observations must be between zero and the number of total observations"
                 )
@@ -66,9 +66,9 @@ class GermanCredit(Posterior1D):
                     {
                         'beta_prior_scale': ParameterScalar(
                             bound='positive',
-                            prior=td.Cauchy(
+                            prior=td.LogNormal(
                                 loc=0.0,
-                                scale=5.0
+                                scale=10.0
                             )
                         ),
                         'tau': ParameterScalar(
@@ -163,7 +163,7 @@ class SparseGermanCredit(Posterior1D):
         self.features, self.labels = load_german_credit()
 
         if n_data is not None:
-            if not 0 < n_data <= len(self.labels):
+            if not 0 <= n_data <= len(self.labels):
                 raise ValueError(
                     "Number of used observations must be between zero and the number of total observations"
                 )
@@ -179,9 +179,9 @@ class SparseGermanCredit(Posterior1D):
                     {
                         'beta_prior_scale': ParameterScalar(
                             bound='positive',
-                            prior=td.Cauchy(
+                            prior=td.LogNormal(
                                 loc=0.0,
-                                scale=5.0
+                                scale=10.0
                             )
                         ),
                         'tau': ParameterScalar(
