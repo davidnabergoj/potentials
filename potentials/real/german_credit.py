@@ -68,7 +68,7 @@ class GermanCredit(Posterior1D):
                             bound='positive',
                             prior=td.LogNormal(
                                 loc=0.0,
-                                scale=10.0
+                                scale=1.0
                             )
                         ),
                         'tau': ParameterScalar(
@@ -181,7 +181,7 @@ class SparseGermanCredit(Posterior1D):
                             bound='positive',
                             prior=td.LogNormal(
                                 loc=0.0,
-                                scale=10.0
+                                scale=1.0
                             )
                         ),
                         'tau': ParameterScalar(

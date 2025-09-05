@@ -58,15 +58,15 @@ class SyntheticItemResponseTheory(Posterior1D):
                     {
                         'beta_prior_scale': ParameterScalar(
                             bound='positive',
-                            prior=td.LogNormal(0.0, 10.0)
+                            prior=td.LogNormal(0.0, 1.0)
                         ),
                         'alpha_prior_scale': ParameterScalar(
                             bound='positive',
-                            prior=td.LogNormal(0.0, 10.0)
+                            prior=td.LogNormal(0.0, 1.0)
                         ),
                         'delta_prior_scale': ParameterScalar(
                             bound='positive',
-                            prior=td.LogNormal(0.0, 10.0)
+                            prior=td.LogNormal(0.0, 1.0)
                         ),
                         'beta': ParameterVector(
                             400,
