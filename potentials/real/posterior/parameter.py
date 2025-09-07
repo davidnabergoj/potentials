@@ -159,6 +159,7 @@ class ParameterDAG:
             ret = p.constrain_with_log_det(_in)
             constrained_parameters[key] = ret[0]
             log_det += ret[1]
+            idx_start = idx_end
 
         self._add_parameters(constrained_parameters)
         return constrained_parameters, log_det
