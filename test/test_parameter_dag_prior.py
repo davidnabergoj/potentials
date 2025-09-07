@@ -53,7 +53,7 @@ def test_sparse_german_credit_value():
         + _tmp_beta
         + _tmp_lambda
     )
-    neg_log_prob_manual = -log_prob_manual
+    neg_log_prob_manual = -log_prob_manual.to(neg_log_prob_sgc.dtype)
 
     assert torch.all(torch.isfinite(neg_log_prob_sgc))
     assert torch.all(torch.isfinite(neg_log_prob_manual))
