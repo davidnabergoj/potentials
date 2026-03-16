@@ -103,11 +103,19 @@ class FunnelBase(StructuredPotential):
         u_xi = sum_except_batch(gaussian_potential(xi, mu, sigma), batch_shape)
         return u_x1 + u_xi
 
+    def _conditional_sample(self, x0: torch.Tensor) -> torch.Tensor:
+        """Sample dimensions 1 and onwards conditional on samples from dimension 0.
+
+        :param torch.Tensor x0: tensor with shape `(*batch_shape,)`
+        :return: tensor with shape `(*batch_shape, n_dim - 1)`.
+        """
+        u = torch.randn(*x0.shape, self.n_dim - 1)
+        return u * torch.exp(x0[..., None] / 2)
+
     def sample(self, batch_shape: Union[torch.Size, Tuple[int]]) -> torch.Tensor:
         x = torch.zeros(*batch_shape, self.n_dim)
         x[..., 0] = self.base_potential_1d.sample(batch_shape)[..., 0]
-        x[..., 1:self.n_dim] = torch.randn(
-            *batch_shape, self.n_dim - 1) * torch.exp(x[..., 0][..., None] / 2)
+        x[..., 1:self.n_dim] = self._conditional_sample(x[..., 0])
         return x
 
     @property
