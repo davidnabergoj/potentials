@@ -97,8 +97,8 @@ class FunnelBase(StructuredPotential):
         mu = torch.zeros_like(xi)  # (*batch_shape, n_dim - 1)
 
         # (*batch_shape, n_dim - 1)
-        sigma = torch.exp(x[..., 0] / 2)[..., None].repeat(tuple([1]
-                                                                 * len(batch_shape) + [self.n_dim - 1]))
+        sigma = torch.exp(x[..., 0] / 2)[..., None]
+        sigma = sigma.repeat(tuple([1] * len(batch_shape) + [self.n_dim - 1]))
 
         u_xi = sum_except_batch(gaussian_potential(xi, mu, sigma), batch_shape)
         return u_x1 + u_xi
