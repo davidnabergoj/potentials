@@ -38,9 +38,9 @@ _optional_hyperprior = [
 
 
 _optional_multimodal_hyperprior = [
-    # GermanCredit,
+    GermanCredit,
     SparseGermanCredit,
-    # SyntheticItemResponseTheory
+    SyntheticItemResponseTheory
 ]
 
 

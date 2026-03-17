@@ -47,7 +47,10 @@ class GermanCredit(Posterior1D):
 
     def __init__(self,
                  n_data: int = None,
-                 use_hyperprior: bool = False):
+                 use_hyperprior: bool = False,
+                 use_multimodal_hyperprior: bool = False):
+        if use_hyperprior and use_multimodal_hyperprior:
+            raise ValueError("Only set one hyperprior")
         self.features, self.labels = load_german_credit()
 
         if n_data is not None:
@@ -58,8 +61,10 @@ class GermanCredit(Posterior1D):
             self.features = self.features[:n_data]
             self.labels = self.labels[:n_data]
 
-        self._modified = (n_data is not None) and not (use_hyperprior)
+        self._modified = (n_data is not None) and (not (use_hyperprior or use_multimodal_hyperprior))
+
         self.use_hyperprior = use_hyperprior
+        self.use_multimodal_hyperprior = use_multimodal_hyperprior
 
         if use_hyperprior:
             super().__init__(
@@ -70,6 +75,42 @@ class GermanCredit(Posterior1D):
                             prior=td.LogNormal(
                                 loc=0.0,
                                 scale=1.0
+                            )
+                        ),
+                        'tau': ParameterScalar(
+                            bound='positive',
+                            prior=td.Gamma(
+                                concentration=0.5,
+                                rate=0.5
+                            )
+                        ),
+                        'beta': ParameterVector(
+                            25,
+                            prior=td.Normal,
+                            prior_kwargs={
+                                'loc': torch.zeros(25),
+                                'scale': 'beta_prior_scale'
+                            }
+                        )
+                    },
+                    [
+                        ('beta_prior_scale', 'beta')
+                    ]
+                )
+            )
+        elif use_multimodal_hyperprior:
+            super().__init__(
+                posterior_parameters=ParameterDAG(
+                    {
+                        'beta_prior_scale': ParameterScalar(
+                            bound='positive',
+                            prior=LogNormalMixture(
+                                loc0=0.0,
+                                scale0=1.0,
+                                loc1=2,
+                                scale1=1/10,
+                                weight0=0.5,
+                                weight1=0.5
                             )
                         ),
                         'tau': ParameterScalar(

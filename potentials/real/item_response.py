@@ -8,6 +8,8 @@ from potentials.real.posterior.base import Posterior1D
 from potentials.real.posterior.parameter import ParameterDAG, ParameterScalar, ParameterVector
 import urllib.request
 
+from potentials.utils import LogNormalMixture
+
 
 class SyntheticItemResponseTheory(Posterior1D):
     """
@@ -18,7 +20,10 @@ class SyntheticItemResponseTheory(Posterior1D):
 
     def __init__(self,
                  n_data: int = None,
-                 use_hyperprior: bool = False):
+                 use_hyperprior: bool = False,
+                 use_multimodal_hyperprior: bool = False):
+        if use_hyperprior and use_multimodal_hyperprior:
+            raise ValueError("Only set one hyperprior")
         download_url = "https://raw.githubusercontent.com/stan-dev/example-models/master/misc/irt/irt.data.json"
         data_dir = Path(__file__).parent / 'downloaded'
         data_file = data_dir / "irt.data.json"
@@ -49,8 +54,10 @@ class SyntheticItemResponseTheory(Posterior1D):
             self.question_index = self.question_index[:n_data]
             self.n_responses = n_data
 
-        self._modified = (n_data is not None) and (not use_hyperprior)
+        self._modified = (n_data is not None) and (not (use_hyperprior or use_multimodal_hyperprior))
+
         self.use_hyperprior = use_hyperprior
+        self.use_multimodal_hyperprior = use_multimodal_hyperprior
 
         if use_hyperprior:
             super().__init__(
@@ -67,6 +74,74 @@ class SyntheticItemResponseTheory(Posterior1D):
                         'delta_prior_scale': ParameterScalar(
                             bound='positive',
                             prior=td.LogNormal(0.0, 1.0)
+                        ),
+                        'beta': ParameterVector(
+                            400,
+                            prior=td.Normal,
+                            prior_kwargs={
+                                'loc': 0.0,
+                                'scale': 'beta_prior_scale'
+                            }
+                        ),
+                        'alpha': ParameterVector(
+                            100,
+                            prior=td.Normal,
+                            prior_kwargs={
+                                'loc': 0.0,
+                                'scale': 'alpha_prior_scale'
+                            }
+                        ),
+                        'delta': ParameterScalar(
+                            prior=td.Normal,
+                            prior_kwargs={
+                                'loc': 0.0,
+                                'scale': 'delta_prior_scale'
+                            }
+                        ),
+                    },
+                    [
+                        ('beta_prior_scale', 'beta'),
+                        ('alpha_prior_scale', 'alpha'),
+                        ('delta_prior_scale', 'delta'),
+                    ]
+                )
+            )
+        elif use_multimodal_hyperprior:
+            super().__init__(
+                posterior_parameters=ParameterDAG(
+                    {
+                        'beta_prior_scale': ParameterScalar(
+                            bound='positive',
+                            prior=LogNormalMixture(
+                                loc0=0.0,
+                                scale0=1.0,
+                                loc1=2,
+                                scale1=1/10,
+                                weight0=0.5,
+                                weight1=0.5
+                            )
+                        ),
+                        'alpha_prior_scale': ParameterScalar(
+                            bound='positive',
+                            prior=LogNormalMixture(
+                                loc0=0.0,
+                                scale0=1.0,
+                                loc1=2,
+                                scale1=1/10,
+                                weight0=0.5,
+                                weight1=0.5
+                            )
+                        ),
+                        'delta_prior_scale': ParameterScalar(
+                            bound='positive',
+                            prior=LogNormalMixture(
+                                loc0=0.0,
+                                scale0=1.0,
+                                loc1=2,
+                                scale1=1/10,
+                                weight0=0.5,
+                                weight1=0.5
+                            )
                         ),
                         'beta': ParameterVector(
                             400,
