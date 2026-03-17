@@ -1,4 +1,6 @@
 import torch
+import torch.distributions as td
+from torch.distributions import constraints as td_constraints
 import numpy as np
 from potentials.base import Potential
 
@@ -71,9 +73,11 @@ def generate_cholesky_factor(eigenvalues: torch.Tensor, seed: int = 0):
 
     Source: https://scicomp.stackexchange.com/a/34648.
     """
-    rotation = generate_rotation_matrix(n_dim=len(eigenvalues), seed=seed).to(eigenvalues)
+    rotation = generate_rotation_matrix(
+        n_dim=len(eigenvalues), seed=seed).to(eigenvalues)
     _, r = torch.linalg.qr(torch.diag(torch.sqrt(eigenvalues)) @ rotation.T)
-    r *= torch.sign(torch.diag(r))[:, None]  # For uniqueness: negate row of R with negative diagonal element
+    # For uniqueness: negate row of R with negative diagonal element
+    r *= torch.sign(torch.diag(r))[:, None]
     return r.T
 
 
@@ -94,7 +98,8 @@ def plot_2d(potential_2d,
     ys = torch.linspace(ymin, ymax, resolution)
     xx, yy = torch.meshgrid(xs, ys, indexing="xy")
     xx_flat, yy_flat = xx.ravel(), yy.ravel()
-    zz_flat = -potential_2d(torch.concat([xx_flat[:, None], yy_flat[:, None]], dim=1))
+    zz_flat = - \
+        potential_2d(torch.concat([xx_flat[:, None], yy_flat[:, None]], dim=1))
     zz_flat = zz_flat.exp()
     zz = zz_flat.view_as(xx)
 
@@ -168,7 +173,7 @@ def reduce_two_key_dataset(key1_index: torch.Tensor,
 
     # Modify key1 index
     new_key1_index = key1_index[_kept]
-    
+
     # Modify key2 index
     reduced_key2_index = key2_index[_kept]
 
@@ -189,7 +194,7 @@ def reduce_two_key_dataset(key1_index: torch.Tensor,
     replacement = dict(zip(reduced_key2_ids.tolist(), new_key2_ids.tolist()))
     for i in range(len(reduced_key2_index)):
         reduced_key2_index[i] = replacement[int(reduced_key2_index[i])]
-    
+
     new_key2_index = reduced_key2_index
     new_n_key2_ids = len(new_key2_ids)
 
@@ -201,3 +206,97 @@ def reduce_two_key_dataset(key1_index: torch.Tensor,
         new_n_key2_ids,
         new_n_data
     )
+
+
+class LogNormalMixture(td.Distribution):
+    """
+    A log-normal mixture distribution where:
+    log(X) ~ w0 * N(loc0, scale0) + w1 * N(loc1, scale1)
+
+    Args:
+        loc0: mean of first normal component (in log space)
+        scale0: std dev of first normal component (in log space)
+        loc1: mean of second normal component (in log space)
+        scale1: std dev of second normal component (in log space)
+        weight0: unnormalized weight for first component (will be normalized)
+        weight1: unnormalized weight for second component (will be normalized)
+    """
+
+    arg_constraints = {
+        'loc0': td_constraints.real,
+        'scale0': td_constraints.positive,
+        'loc1': td_constraints.real,
+        'scale1': td_constraints.positive,
+        'weight0': td_constraints.positive,
+        'weight1': td_constraints.positive,
+    }
+    support = td_constraints.positive
+    has_rsample = True
+
+    def __init__(self, loc0, scale0, loc1, scale1, weight0, weight1, validate_args=None):
+        self.loc0 = torch.as_tensor(loc0, dtype=torch.float32)
+        self.scale0 = torch.as_tensor(scale0, dtype=torch.float32)
+        self.loc1 = torch.as_tensor(loc1, dtype=torch.float32)
+        self.scale1 = torch.as_tensor(scale1, dtype=torch.float32)
+
+        self.weight0 = torch.as_tensor(weight0, dtype=torch.float32)
+        self.weight1 = torch.as_tensor(weight1, dtype=torch.float32)
+
+        # Normalize weights via softmax
+        weights = torch.stack([self.weight0, self.weight1], dim=-1)
+        self._probs = weights / torch.sum(weights)
+        self._w0 = self._probs[..., 0]
+        self._w1 = self._probs[..., 1]
+
+        self._n0 = td.Normal(self.loc0, self.scale0)
+        self._n1 = td.Normal(self.loc1, self.scale1)
+
+        batch_shape = torch.broadcast_shapes(
+            self.loc0.shape, self.scale0.shape,
+            self.loc1.shape, self.scale1.shape,
+            self._w0.shape
+        )
+        super().__init__(batch_shape=batch_shape, validate_args=validate_args)
+
+    def log_prob(self, x):
+        """log p(x) = log[ w0 * LN(x|loc0,scale0) + w1 * LN(x|loc1,scale1) ]"""
+        if self._validate_args:
+            self._validate_sample(x)
+
+        log_x = x.log()
+
+        # log p(x) for each lognormal component = log N(log x | loc, scale) - log x
+        lp0 = self._n0.log_prob(log_x) - log_x
+        lp1 = self._n1.log_prob(log_x) - log_x
+
+        # log-sum-exp with weights: log(w0 * p0 + w1 * p1)
+        log_w0 = self._w0.log()
+        log_w1 = self._w1.log()
+
+        return torch.logaddexp(log_w0 + lp0, log_w1 + lp1)
+
+    def rsample(self, sample_shape=torch.Size()):
+        shape = self._extended_shape(sample_shape)
+        with torch.no_grad():
+            component = torch.bernoulli(self._w1.expand(shape)).bool()
+        eps = torch.randn(shape)
+        s0 = self.loc0 + self.scale0 * eps
+        s1 = self.loc1 + self.scale1 * eps
+        log_sample = torch.where(component, s1, s0)
+        return log_sample.exp()
+
+    @property
+    def mean(self):
+        """E[X] = w0 * exp(loc0 + scale0²/2) + w1 * exp(loc1 + scale1²/2)"""
+        m0 = torch.exp(self.loc0 + 0.5 * self.scale0 ** 2)
+        m1 = torch.exp(self.loc1 + 0.5 * self.scale1 ** 2)
+        return self._w0 * m0 + self._w1 * m1
+
+    @property
+    def variance(self):
+        """Var[X] = E[X²] - E[X]²"""
+        # E[X²] = w0 * exp(2*loc0 + 2*scale0²) + w1 * exp(2*loc1 + 2*scale1²)
+        ex2_0 = torch.exp(2 * self.loc0 + 2 * self.scale0 ** 2)
+        ex2_1 = torch.exp(2 * self.loc1 + 2 * self.scale1 ** 2)
+        ex2 = self._w0 * ex2_0 + self._w1 * ex2_1
+        return ex2 - self.mean ** 2
