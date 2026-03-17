@@ -40,7 +40,10 @@ _optional_hyperprior = [
 _optional_multimodal_hyperprior = [
     GermanCredit,
     SparseGermanCredit,
-    SyntheticItemResponseTheory
+    SyntheticItemResponseTheory,
+    RadonVaryingIntercepts,
+    RadonVaryingInterceptsAndSlopes,
+    RadonVaryingSlopes,
 ]
 
 

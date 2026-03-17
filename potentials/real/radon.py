@@ -9,6 +9,7 @@ import torch
 import torch.distributions as td
 
 from potentials.real.posterior.parameter import ParameterDAG, ParameterScalar, ParameterVector
+from potentials.utils import LogNormalMixture
 
 
 # https://www.tensorflow.org/probability/examples/Multilevel_Modeling_Primer
@@ -60,7 +61,9 @@ def load_radon(n_counties: int, n_data: int = None):
 
 
 class RadonVaryingSlopes(Posterior1D):
-    def __init__(self, n_data: int = None):
+    def __init__(self, 
+                 n_data: int = None,
+                 use_multimodal_hyperprior: bool = False):
         n_counties = 85
         (
             self.floor,
@@ -72,51 +75,108 @@ class RadonVaryingSlopes(Posterior1D):
             n_data=n_data
         )
         self.n_counties = n_counties
-        self._modified = n_data is not None
-        super().__init__(
-            posterior_parameters=ParameterDAG(
-                {
-                    'mu_a': ParameterScalar(
-                        prior=td.Normal(
-                            loc=0,
-                            scale=1e5
-                        )
-                    ),
-                    'sigma_a': ParameterScalar(
-                        bound='positive',
-                        prior=td.LogNormal(
-                            loc=0,
-                            scale=1.0
-                        )
-                    ),
-                    'sigma_y': ParameterScalar(
-                        bound='positive',
-                        prior=td.LogNormal(
-                            loc=0,
-                            scale=1.0
-                        )
-                    ),
-                    'a': ParameterVector(
-                        self.n_counties,
-                        prior=td.Normal,
-                        prior_kwargs={
-                            'loc': 'mu_a',
-                            'scale': 'sigma_a'
-                        }
-                    ),
-                    'b': ParameterScalar(
-                        prior=td.Normal(
-                            loc=0,
-                            scale=1e5
-                        )
-                    ),
-                },
-                [
-                    ('mu_a', 'a'),
-                    ('sigma_a', 'a'),
-                ]
+        
+        self._modified = (n_data is not None) and (not use_multimodal_hyperprior)
+        self.use_multimodal_hyperprior = use_multimodal_hyperprior
+
+        if self.use_multimodal_hyperprior:
+            super().__init__(
+                posterior_parameters=ParameterDAG(
+                    {
+                        'mu_a': ParameterScalar(
+                            prior=td.Normal(
+                                loc=0,
+                                scale=1e5
+                            )
+                        ),
+                        'sigma_a': ParameterScalar(
+                            bound='positive',
+                            prior=LogNormalMixture(
+                                loc0=0.0,
+                                scale0=1.0,
+                                loc1=2,
+                                scale1=1/10,
+                                weight0=0.5,
+                                weight1=0.5
+                            )
+                        ),
+                        'sigma_y': ParameterScalar(
+                            bound='positive',
+                            prior=LogNormalMixture(
+                                loc0=0.0,
+                                scale0=1.0,
+                                loc1=2,
+                                scale1=1/10,
+                                weight0=0.5,
+                                weight1=0.5
+                            )
+                        ),
+                        'a': ParameterVector(
+                            self.n_counties,
+                            prior=td.Normal,
+                            prior_kwargs={
+                                'loc': 'mu_a',
+                                'scale': 'sigma_a'
+                            }
+                        ),
+                        'b': ParameterScalar(
+                            prior=td.Normal(
+                                loc=0,
+                                scale=1e5
+                            )
+                        ),
+                    },
+                    [
+                        ('mu_a', 'a'),
+                        ('sigma_a', 'a'),
+                    ]
+                )
             )
-        )
+        else:
+            super().__init__(
+                posterior_parameters=ParameterDAG(
+                    {
+                        'mu_a': ParameterScalar(
+                            prior=td.Normal(
+                                loc=0,
+                                scale=1e5
+                            )
+                        ),
+                        'sigma_a': ParameterScalar(
+                            bound='positive',
+                            prior=td.LogNormal(
+                                loc=0,
+                                scale=1.0
+                            )
+                        ),
+                        'sigma_y': ParameterScalar(
+                            bound='positive',
+                            prior=td.LogNormal(
+                                loc=0,
+                                scale=1.0
+                            )
+                        ),
+                        'a': ParameterVector(
+                            self.n_counties,
+                            prior=td.Normal,
+                            prior_kwargs={
+                                'loc': 'mu_a',
+                                'scale': 'sigma_a'
+                            }
+                        ),
+                        'b': ParameterScalar(
+                            prior=td.Normal(
+                                loc=0,
+                                scale=1e5
+                            )
+                        ),
+                    },
+                    [
+                        ('mu_a', 'a'),
+                        ('sigma_a', 'a'),
+                    ]
+                )
+            )
 
     def likelihood_object(self,
                           extracted: Dict[str, torch.Tensor]):
@@ -168,7 +228,9 @@ class RadonVaryingSlopes(Posterior1D):
 
 
 class RadonVaryingIntercepts(Posterior1D):
-    def __init__(self, n_data: int = None):
+    def __init__(self, 
+                 n_data: int = None,
+                 use_multimodal_hyperprior: bool = False):
         n_counties = 85
         (
             self.floor,
@@ -180,50 +242,106 @@ class RadonVaryingIntercepts(Posterior1D):
             n_data=n_data
         )
         self.n_counties = n_counties
-        self._modified = n_data is not None
-        super().__init__(
-            posterior_parameters=ParameterDAG(
-                {
-                    'mu_b': ParameterScalar(
-                        prior=td.Normal(
-                            loc=0,
-                            scale=1e5
-                        )
-                    ),
-                    'sigma_b': ParameterScalar(
-                        bound='positive',
-                        prior=td.LogNormal(
-                            loc=0,
-                            scale=1.0
-                        )
-                    ),
-                    'sigma_y': ParameterScalar(
-                        bound='positive',
-                        prior=td.LogNormal(
-                            loc=0,
-                            scale=1.0
-                        )
-                    ),
-                    'a': ParameterScalar(
-                        prior=td.Normal(
-                            loc=0,
-                            scale=1e5
-                        )
-                    ),
-                    'b': ParameterVector(
-                        self.n_counties,
-                        prior=td.Normal,
-                        prior_kwargs={
-                            'loc': 'mu_b',
-                            'scale': 'sigma_b'
-                        }
-                    ),
-                },
-                [
-                    ('mu_b', 'b'),
-                    ('sigma_b', 'b'),
-                ]
-            ))
+        
+        self._modified = (n_data is not None) and (not use_multimodal_hyperprior)
+        self.use_multimodal_hyperprior = use_multimodal_hyperprior
+
+        if self.use_multimodal_hyperprior:
+            super().__init__(
+                posterior_parameters=ParameterDAG(
+                    {
+                        'mu_b': ParameterScalar(
+                            prior=td.Normal(
+                                loc=0,
+                                scale=1e5
+                            )
+                        ),
+                        'sigma_b': ParameterScalar(
+                            bound='positive',
+                            prior=LogNormalMixture(
+                                loc0=0.0,
+                                scale0=1.0,
+                                loc1=2,
+                                scale1=1/10,
+                                weight0=0.5,
+                                weight1=0.5
+                            )
+                        ),
+                        'sigma_y': ParameterScalar(
+                            bound='positive',
+                            prior=LogNormalMixture(
+                                loc0=0.0,
+                                scale0=1.0,
+                                loc1=2,
+                                scale1=1/10,
+                                weight0=0.5,
+                                weight1=0.5
+                            )
+                        ),
+                        'a': ParameterScalar(
+                            prior=td.Normal(
+                                loc=0,
+                                scale=1e5
+                            )
+                        ),
+                        'b': ParameterVector(
+                            self.n_counties,
+                            prior=td.Normal,
+                            prior_kwargs={
+                                'loc': 'mu_b',
+                                'scale': 'sigma_b'
+                            }
+                        ),
+                    },
+                    [
+                        ('mu_b', 'b'),
+                        ('sigma_b', 'b'),
+                    ]
+                ))
+        else:
+            super().__init__(
+                posterior_parameters=ParameterDAG(
+                    {
+                        'mu_b': ParameterScalar(
+                            prior=td.Normal(
+                                loc=0,
+                                scale=1e5
+                            )
+                        ),
+                        'sigma_b': ParameterScalar(
+                            bound='positive',
+                            prior=td.LogNormal(
+                                loc=0,
+                                scale=1.0
+                            )
+                        ),
+                        'sigma_y': ParameterScalar(
+                            bound='positive',
+                            prior=td.LogNormal(
+                                loc=0,
+                                scale=1.0
+                            )
+                        ),
+                        'a': ParameterScalar(
+                            prior=td.Normal(
+                                loc=0,
+                                scale=1e5
+                            )
+                        ),
+                        'b': ParameterVector(
+                            self.n_counties,
+                            prior=td.Normal,
+                            prior_kwargs={
+                                'loc': 'mu_b',
+                                'scale': 'sigma_b'
+                            }
+                        ),
+                    },
+                    [
+                        ('mu_b', 'b'),
+                        ('sigma_b', 'b'),
+                    ]
+                ))
 
     def likelihood_object(self, extracted):
         batch_shape = extracted['b'].shape[:-1]
@@ -274,7 +392,9 @@ class RadonVaryingIntercepts(Posterior1D):
 
 
 class RadonVaryingInterceptsAndSlopes(Posterior1D):
-    def __init__(self, n_data: int = None):
+    def __init__(self, 
+                 n_data: int = None,
+                 use_multimodal_hyperprior: bool = False):
         n_counties = 85
         (
             self.floor,
@@ -286,68 +406,146 @@ class RadonVaryingInterceptsAndSlopes(Posterior1D):
             n_data=n_data
         )
         self.n_counties = n_counties
-        self._modified = n_data is not None
-        super().__init__(
-            posterior_parameters=ParameterDAG(
-                {
-                    'mu_a': ParameterScalar(
-                        prior=td.Normal(
-                            loc=0,
-                            scale=1e5
-                        )
-                    ),
-                    'sigma_a': ParameterScalar(
-                        bound='positive',
-                        prior=td.LogNormal(
-                            loc=0,
-                            scale=1.0
-                        )
-                    ),
-                    'mu_b': ParameterScalar(
-                        prior=td.Normal(
-                            loc=0,
-                            scale=1e5
-                        )
-                    ),
-                    'sigma_b': ParameterScalar(
-                        bound='positive',
-                        prior=td.LogNormal(
-                            loc=0,
-                            scale=1.0
-                        )
-                    ),
-                    'sigma_y': ParameterScalar(
-                        bound='positive',
-                        prior=td.LogNormal(
-                            loc=0,
-                            scale=1.0
-                        )
-                    ),
-                    'a': ParameterVector(
-                        self.n_counties,
-                        prior=td.Normal,
-                        prior_kwargs={
-                            'loc': 'mu_a',
-                            'scale': 'sigma_a'
-                        }
-                    ),
-                    'b': ParameterVector(
-                        self.n_counties,
-                        prior=td.Normal,
-                        prior_kwargs={
-                            'loc': 'mu_b',
-                            'scale': 'sigma_b'
-                        }
-                    ),
-                },
-                [
-                    ('mu_a', 'a'),
-                    ('sigma_a', 'a'),
-                    ('mu_b', 'b'),
-                    ('sigma_b', 'b'),
-                ]
+
+        self._modified = (n_data is not None) and (not use_multimodal_hyperprior)
+        self.use_multimodal_hyperprior = use_multimodal_hyperprior
+        
+        if self.use_multimodal_hyperprior:
+            super().__init__(
+                posterior_parameters=ParameterDAG(
+                    {
+                        'mu_a': ParameterScalar(
+                            prior=td.Normal(
+                                loc=0,
+                                scale=1e5
+                            )
+                        ),
+                        'sigma_a': ParameterScalar(
+                            bound='positive',
+                            prior=LogNormalMixture(
+                                loc0=0.0,
+                                scale0=1.0,
+                                loc1=2,
+                                scale1=1/10,
+                                weight0=0.5,
+                                weight1=0.5
+                            )
+                        ),
+                        'mu_b': ParameterScalar(
+                            prior=td.Normal(
+                                loc=0,
+                                scale=1e5
+                            )
+                        ),
+                        'sigma_b': ParameterScalar(
+                            bound='positive',
+                            prior=LogNormalMixture(
+                                loc0=0.0,
+                                scale0=1.0,
+                                loc1=2,
+                                scale1=1/10,
+                                weight0=0.5,
+                                weight1=0.5
+                            )
+                        ),
+                        'sigma_y': ParameterScalar(
+                            bound='positive',
+                            prior=LogNormalMixture(
+                                loc0=0.0,
+                                scale0=1.0,
+                                loc1=2,
+                                scale1=1/10,
+                                weight0=0.5,
+                                weight1=0.5
+                            )
+                        ),
+                        'a': ParameterVector(
+                            self.n_counties,
+                            prior=td.Normal,
+                            prior_kwargs={
+                                'loc': 'mu_a',
+                                'scale': 'sigma_a'
+                            }
+                        ),
+                        'b': ParameterVector(
+                            self.n_counties,
+                            prior=td.Normal,
+                            prior_kwargs={
+                                'loc': 'mu_b',
+                                'scale': 'sigma_b'
+                            }
+                        ),
+                    },
+                    [
+                        ('mu_a', 'a'),
+                        ('sigma_a', 'a'),
+                        ('mu_b', 'b'),
+                        ('sigma_b', 'b'),
+                    ]
+                )
             )
-        )
+        else:
+            super().__init__(
+                posterior_parameters=ParameterDAG(
+                    {
+                        'mu_a': ParameterScalar(
+                            prior=td.Normal(
+                                loc=0,
+                                scale=1e5
+                            )
+                        ),
+                        'sigma_a': ParameterScalar(
+                            bound='positive',
+                            prior=td.LogNormal(
+                                loc=0,
+                                scale=1.0
+                            )
+                        ),
+                        'mu_b': ParameterScalar(
+                            prior=td.Normal(
+                                loc=0,
+                                scale=1e5
+                            )
+                        ),
+                        'sigma_b': ParameterScalar(
+                            bound='positive',
+                            prior=td.LogNormal(
+                                loc=0,
+                                scale=1.0
+                            )
+                        ),
+                        'sigma_y': ParameterScalar(
+                            bound='positive',
+                            prior=td.LogNormal(
+                                loc=0,
+                                scale=1.0
+                            )
+                        ),
+                        'a': ParameterVector(
+                            self.n_counties,
+                            prior=td.Normal,
+                            prior_kwargs={
+                                'loc': 'mu_a',
+                                'scale': 'sigma_a'
+                            }
+                        ),
+                        'b': ParameterVector(
+                            self.n_counties,
+                            prior=td.Normal,
+                            prior_kwargs={
+                                'loc': 'mu_b',
+                                'scale': 'sigma_b'
+                            }
+                        ),
+                    },
+                    [
+                        ('mu_a', 'a'),
+                        ('sigma_a', 'a'),
+                        ('mu_b', 'b'),
+                        ('sigma_b', 'b'),
+                    ]
+                )
+            )
 
     def likelihood_object(self, extracted):
         batch_shape = extracted['a'].shape[:-1]
