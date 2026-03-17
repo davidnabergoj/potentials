@@ -24,7 +24,7 @@ def lognormal_log_prob_ref(x, loc, scale):
     return -0.5 * ((lx - loc) / scale) ** 2 - math.log(scale) - 0.5 * math.log(2 * math.pi) - lx
 
 
-# ── 1. construction & shapes ─────────────────────────────────────────────────
+# 1. construction & shapes
 
 class TestConstruction:
     def test_scalar_construction(self):
@@ -52,7 +52,7 @@ class TestConstruction:
         assert torch.isclose(d._w1, torch.tensor(0.5), atol=1e-6)
 
 
-# ── 2. support ────────────────────────────────────────────────────────────────
+# 2. support
 
 class TestSupport:
     def test_support_is_positive(self):
@@ -77,11 +77,10 @@ class TestSupport:
             d.log_prob(torch.tensor(-1.0))
 
 
-# ── 3. log_prob correctness ───────────────────────────────────────────────────
+# 3. log_prob correctness──
 
 class TestLogProb:
     def test_degenerate_weight0_matches_lognormal(self):
-        """With weight0→∞ the mixture should collapse to a single LogNormal."""
         d = LogNormalMixture(loc0=1.0, scale0=0.5, loc1=5.0, scale1=1.0,
                              weight0=1e6, weight1=1.0)
         ref = dist.LogNormal(loc=1.0, scale=0.5)
@@ -118,21 +117,17 @@ class TestLogProb:
         assert torch.all(torch.isfinite(lps))
 
     def test_log_prob_is_normalized(self):
-        """Numerical integration of exp(log_prob) over positive reals ≈ 1."""
+        """Numerical integration of exp(log_prob) over positive reals is approximately 1."""
         d = scalar_dist()
-        # Integrate in log-space: ∫ p(x) dx = ∫ p(e^u) e^u du
+        # Integrate in log-space: int {p(x) dx} = int {p(e^u) e^u du}
         u = torch.linspace(-6, 8, 10_000)
         du = u[1] - u[0]
         x = u.exp()
         log_px = d.log_prob(x)
-        # p(x) dx = p(e^u) * e^u * du  (but log_prob already accounts for /x Jacobian)
-        # Actually log_prob gives log p(x), so ∫ p(x) dx ≈ sum(exp(log_p(x)) * dx)
-        # dx/du = e^u, so integral in u-space = sum(exp(log_p(e^u)) * e^u * du)
         integral = (log_px + u).exp().sum() * du
         assert abs(integral.item() - 1.0) < 0.01
 
     def test_symmetry_of_component_swap(self):
-        """Swapping components with same weights leaves log_prob unchanged."""
         d1 = LogNormalMixture(loc0=0., scale0=0.5, loc1=2., scale1=0.3,
                               weight0=0.5, weight1=0.5)
         d2 = LogNormalMixture(loc0=2., scale0=0.3, loc1=0., scale1=0.5,
@@ -141,7 +136,7 @@ class TestLogProb:
         assert torch.allclose(d1.log_prob(xs), d2.log_prob(xs), atol=1e-5)
 
 
-# ── 4. sampling ───────────────────────────────────────────────────────────────
+# 4. sampling
 
 class TestSampling:
     def test_rsample_shape_scalar(self):
@@ -178,22 +173,20 @@ class TestSampling:
         torch.manual_seed(SEED)
         d = scalar_dist()
         s = d.rsample((N_SAMPLES,))
-        assert abs(s.var().item() - d.variance.item()) / d.variance.item() < RTOL_MC
+        assert abs(s.var().item() - d.variance.item()) / \
+            d.variance.item() < RTOL_MC
 
     def test_empirical_component_mixing(self):
-        """Samples near each mode should appear with roughly the right frequency."""
         torch.manual_seed(SEED)
         # Two well-separated components
         d = LogNormalMixture(loc0=0., scale0=0.1, loc1=4., scale1=0.1,
                              weight0=0.7, weight1=0.3)
         s = d.rsample((N_SAMPLES,))
-        # Samples < 5 come almost exclusively from component 0 (mean≈1)
-        # Samples > 10 come almost exclusively from component 1 (mean≈e^4≈55)
         frac_low = (s < 5).float().mean().item()
         assert abs(frac_low - 0.7) < 0.02
 
 
-# ── 5. moments ────────────────────────────────────────────────────────────────
+# 5. moments
 
 class TestMoments:
     def test_mean_positive(self):
@@ -203,7 +196,6 @@ class TestMoments:
         assert scalar_dist().variance.item() > 0
 
     def test_mean_degenerate_matches_lognormal(self):
-        """weight0 >> weight1 → mean ≈ LogNormal(loc0, scale0).mean"""
         d = LogNormalMixture(loc0=1.0, scale0=0.5, loc1=5.0, scale1=1.0,
                              weight0=1e6, weight1=1.0)
         ref = dist.LogNormal(loc=torch.tensor(1.0), scale=torch.tensor(0.5))
@@ -244,7 +236,7 @@ class TestMoments:
         assert torch.all(d.mean > 0)
 
 
-# ── 6. gradients ─────────────────────────────────────────────────────────────
+# 6. gradients
 
 class TestGradients:
     def test_log_prob_grad_wrt_x(self):
@@ -266,7 +258,6 @@ class TestGradients:
         assert scale0.grad is not None and torch.isfinite(scale0.grad)
 
     def test_rsample_grad_flows(self):
-        """Reparameterization: gradient should flow back through rsample."""
         loc0 = torch.tensor(0.0, requires_grad=True)
         scale0 = torch.tensor(0.5, requires_grad=True)
         d = LogNormalMixture(loc0=loc0, scale0=scale0, loc1=2.0, scale1=0.3,
@@ -279,7 +270,7 @@ class TestGradients:
         assert scale0.grad is not None
 
 
-# ── 7. edge cases ─────────────────────────────────────────────────────────────
+# 7. edge cases
 
 class TestEdgeCases:
     def test_very_small_x(self):

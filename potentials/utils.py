@@ -209,17 +209,8 @@ def reduce_two_key_dataset(key1_index: torch.Tensor,
 
 
 class LogNormalMixture(td.Distribution):
-    """
-    A log-normal mixture distribution where:
+    """A log-normal mixture distribution where:
     log(X) ~ w0 * N(loc0, scale0) + w1 * N(loc1, scale1)
-
-    Args:
-        loc0: mean of first normal component (in log space)
-        scale0: std dev of first normal component (in log space)
-        loc1: mean of second normal component (in log space)
-        scale1: std dev of second normal component (in log space)
-        weight0: unnormalized weight for first component (will be normalized)
-        weight1: unnormalized weight for second component (will be normalized)
     """
 
     arg_constraints = {
@@ -234,6 +225,15 @@ class LogNormalMixture(td.Distribution):
     has_rsample = True
 
     def __init__(self, loc0, scale0, loc1, scale1, weight0, weight1, validate_args=None):
+        """LogNormalMixture constructor.
+
+        :param float loc0: mean of first normal component (in log space).
+        :param float scale0: std dev of first normal component (in log space).
+        :param float loc1: mean of second normal component (in log space).
+        :param float scale1: std dev of second normal component (in log space).
+        :param float weight0: unnormalized weight for first component (will be normalized).
+        :param float weight1: unnormalized weight for second component (will be normalized).
+        """
         self.loc0 = torch.as_tensor(loc0, dtype=torch.float32)
         self.scale0 = torch.as_tensor(scale0, dtype=torch.float32)
         self.loc1 = torch.as_tensor(loc1, dtype=torch.float32)
@@ -259,7 +259,6 @@ class LogNormalMixture(td.Distribution):
         super().__init__(batch_shape=batch_shape, validate_args=validate_args)
 
     def log_prob(self, x):
-        """log p(x) = log[ w0 * LN(x|loc0,scale0) + w1 * LN(x|loc1,scale1) ]"""
         if self._validate_args:
             self._validate_sample(x)
 
@@ -287,15 +286,12 @@ class LogNormalMixture(td.Distribution):
 
     @property
     def mean(self):
-        """E[X] = w0 * exp(loc0 + scale0²/2) + w1 * exp(loc1 + scale1²/2)"""
         m0 = torch.exp(self.loc0 + 0.5 * self.scale0 ** 2)
         m1 = torch.exp(self.loc1 + 0.5 * self.scale1 ** 2)
         return self._w0 * m0 + self._w1 * m1
 
     @property
     def variance(self):
-        """Var[X] = E[X²] - E[X]²"""
-        # E[X²] = w0 * exp(2*loc0 + 2*scale0²) + w1 * exp(2*loc1 + 2*scale1²)
         ex2_0 = torch.exp(2 * self.loc0 + 2 * self.scale0 ** 2)
         ex2_1 = torch.exp(2 * self.loc1 + 2 * self.scale1 ** 2)
         ex2 = self._w0 * ex2_0 + self._w1 * ex2_1
