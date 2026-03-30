@@ -160,7 +160,7 @@ class Funnel(FunnelBase):
 class BimodalFunnel(FunnelBase):
     def __init__(self,
                  event_shape: Union[Tuple[int, ...], int] = (100,),
-                 scale: float = 1.0,
+                 scale: float = 0.5,
                  weight: float = 0.5):
         # p(x1) = Mixture[N(.; -3, sigma=scale), N(.; 3, sigma=scale), (weight, 1 - weight)]
         # p(xi|x1) = N(.; 0, sigma=exp(x1/2))
@@ -181,6 +181,17 @@ class BimodalFunnel(FunnelBase):
                 weights=torch.tensor([weight, 1 - weight])
             )
         )
+
+    @property
+    @torch.no_grad()
+    def mode_locations(self) -> Tuple[torch.Tensor, torch.Tensor]:
+        loc0 = torch.zeros(size=self.event_shape)
+        loc0[0] = -3.0
+
+        loc1 = torch.zeros(size=self.event_shape)
+        loc1[0] = 3.0
+
+        return loc0, loc1
 
 
 class ShiftedFunnel(ShiftedFunnelBase):
