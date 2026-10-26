@@ -44,6 +44,7 @@ setup(
         "generative-modeling"
     ],
     packages=find_packages(exclude=["test"]),
+    package_data={"potentials": ["real/data/*", "real/downloaded/*", "true_moments/*"]},
     python_requires=">=3.7, <4",
     install_requires=[
         "torch",
