@@ -21,6 +21,7 @@ class PredatorPrey(Potential):
         ]
 
     def __init__(self):
+        raise NotImplementedError
         event_shape = (8,)
         super().__init__(event_shape)
 

@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 
 
+
 class Potential(nn.Module):
     def __init__(self, event_shape: Union[torch.Size, Tuple[int, ...], int]):
         super().__init__()
@@ -101,21 +102,6 @@ class StructuredPotential(Potential):
 
     @property
     def edge_list(self):
-        raise NotImplementedError
-
-
-class Posterior(Potential):
-    def posterior_predictive_draws(self, posterior_draws: torch.Tensor, n_draws: int = 100) -> torch.Tensor:
-        """
-        Sample posterior predictive draws given parameters.
-
-        :param posterior_draws: tensor of parameters with shape (n, n_dim)
-        :param n_draws: number of samples to draw for each parameter vector.
-        :return: tensor of posterior predictive draws with shape (n_draws, n, n_data)
-        """
-        raise NotImplementedError
-
-    def normalized_log_posterior_predictive_density(self, posterior_draws: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
 
 

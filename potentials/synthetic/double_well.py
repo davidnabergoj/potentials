@@ -7,7 +7,9 @@ from potentials.utils import sum_except_batch, get_batch_shape
 
 
 class DoubleWell(PotentialSimple):
-    def __init__(self, event_shape: Union[int, Tuple[int, ...]], distance: float = 4.0):
+    def __init__(self, 
+                 event_shape: Union[int, Tuple[int, ...]] = (100,), 
+                 distance: float = 4.0):
         # Contains 2^{n_dim} modes
         if isinstance(event_shape, int):
             event_shape = (event_shape,)

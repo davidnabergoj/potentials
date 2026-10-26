@@ -5,7 +5,7 @@ import math
 from potentials.synthetic.gaussian.diagonal import DiagonalGaussian, gaussian_potential_v2
 
 
-def test_basic():
+def test_compute():
     potential = DiagonalGaussian(mu=torch.tensor([0.0, 0.0]), sigma=torch.tensor([1.0, 2.0]))
     x = torch.tensor([[1.0, 1.0]])
     u = potential(x)
@@ -16,7 +16,7 @@ def test_basic():
 
 @pytest.mark.parametrize('batch_shape', [(2,), (5,), (10,), (1, 3, 5)])
 @pytest.mark.parametrize('event_shape', [(2,), (5,), (10,), (1, 3, 5)])
-def test_gaussian_potential_v2(batch_shape, event_shape):
+def test_compute_v2(batch_shape, event_shape):
     torch.manual_seed(0)
     x = torch.randn(size=(*batch_shape, *event_shape))
     mu = torch.randn(size=event_shape)

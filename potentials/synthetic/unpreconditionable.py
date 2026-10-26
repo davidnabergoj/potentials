@@ -11,7 +11,9 @@ class UnpreconditionablePotential1(PotentialSimple):
     Reference: Hird and Livingstone: "Quantifying the effectiveness of linear preconditioning in Markov chain Monte
      Carlo" (2023); arxiv: https://arxiv.org/abs/2312.04898, Equation 7.
     """
-    def __init__(self, minimum: float, maximum: float):
+    def __init__(self, 
+                 minimum: float = 1.0, 
+                 maximum: float = 2.0):
         if minimum > maximum:
             raise ValueError("minimum is greater than maximum")
         self.minimum = minimum

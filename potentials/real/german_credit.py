@@ -1,13 +1,16 @@
+from typing import Dict
 import numpy as np
 
-from potentials.base import Posterior
+from potentials.real.posterior.base import Posterior1D
 import torch
 from pathlib import Path
 import urllib.request
 import zipfile
 import torch.distributions as td
 
+from potentials.real.posterior.parameter import ParameterDAG, ParameterVector, ParameterScalar
 from potentials.transformations import bound_parameter, bound_positive
+from potentials.utils import LogNormalMixture
 
 
 def load_german_credit():
@@ -36,59 +39,135 @@ def load_german_credit():
     return x, y
 
 
-class GermanCredit(Posterior):
+class GermanCredit(Posterior1D):
     """
     tau ~ Gamma(0.5, 0.5)
     beta[i] ~ N(0, 1)
     """
 
-    def __init__(self, n_data: int = None):
+    def __init__(self,
+                 n_data: int = None,
+                 use_hyperprior: bool = False,
+                 use_multimodal_hyperprior: bool = False):
+        if use_hyperprior and use_multimodal_hyperprior:
+            raise ValueError("Only set one hyperprior")
         self.features, self.labels = load_german_credit()
 
         if n_data is not None:
-            if not 0 < n_data <= len(self.labels):
+            if not 0 <= n_data <= len(self.labels):
                 raise ValueError(
                     "Number of used observations must be between zero and the number of total observations"
                 )
             self.features = self.features[:n_data]
             self.labels = self.labels[:n_data]
-        
-        super().__init__((26,))
 
-    def compute(self, x: torch.Tensor) -> torch.Tensor:
-        assert x.shape[-1] == 26
-        batch_shape = x.shape[:-1]
+        self._modified = (n_data is not None) and (not (use_hyperprior or use_multimodal_hyperprior))
 
-        beta = x[..., 1:]
-        unnormalized_tau = x[..., 0]
-        tau, log_det_tau = bound_parameter(
-            unnormalized_tau,
-            batch_shape,
-            low=0.0,
-            high=torch.inf
-        )
-        log_det = log_det_tau
+        self.use_hyperprior = use_hyperprior
+        self.use_multimodal_hyperprior = use_multimodal_hyperprior
 
-        # Compute the log prior
-        log_prior = torch.add(
-            td.Gamma(0.5, 0.5).log_prob(tau),
-            td.Normal(0.0, 1.0).log_prob(beta).sum(dim=-1),
-        )
+        if use_hyperprior:
+            super().__init__(
+                posterior_parameters=ParameterDAG(
+                    {
+                        'beta_prior_scale': ParameterScalar(
+                            bound='positive',
+                            prior=td.LogNormal(
+                                loc=0.0,
+                                scale=1.0
+                            )
+                        ),
+                        'tau': ParameterScalar(
+                            bound='positive',
+                            prior=td.Gamma(
+                                concentration=0.5,
+                                rate=0.5
+                            )
+                        ),
+                        'beta': ParameterVector(
+                            25,
+                            prior=td.Normal,
+                            prior_kwargs={
+                                'loc': torch.zeros(25),
+                                'scale': 'beta_prior_scale'
+                            }
+                        )
+                    },
+                    [
+                        ('beta_prior_scale', 'beta')
+                    ]
+                )
+            )
+        elif use_multimodal_hyperprior:
+            super().__init__(
+                posterior_parameters=ParameterDAG(
+                    {
+                        'beta_prior_scale': ParameterScalar(
+                            bound='positive',
+                            prior=LogNormalMixture(
+                                loc0=0.0,
+                                scale0=1.0,
+                                loc1=2,
+                                scale1=1/10,
+                                weight0=0.5,
+                                weight1=0.5
+                            )
+                        ),
+                        'tau': ParameterScalar(
+                            bound='positive',
+                            prior=td.Gamma(
+                                concentration=0.5,
+                                rate=0.5
+                            )
+                        ),
+                        'beta': ParameterVector(
+                            25,
+                            prior=td.Normal,
+                            prior_kwargs={
+                                'loc': torch.zeros(25),
+                                'scale': 'beta_prior_scale'
+                            }
+                        )
+                    },
+                    [
+                        ('beta_prior_scale', 'beta')
+                    ]
+                )
+            )
+        else:
+            super().__init__(
+                posterior_parameters=ParameterDAG({
+                    'tau': ParameterScalar(
+                        bound='positive',
+                        prior=td.Gamma(
+                            concentration=0.5,
+                            rate=0.5
+                        )
+                    ),
+                    'beta': ParameterVector(
+                        25,
+                        prior=td.Normal(0.0, 1.0)
+                    ),
+                })
+            )
 
-        # Compute the log likelihood
+    def likelihood_object(self,
+                          extracted: Dict[str, torch.Tensor]):
+        batch_shape = extracted['beta'].shape[:-1]
         logits = torch.einsum(
             'nf,...f->...nf',
             self.features,
-            tau.view(*batch_shape, 1) * beta
+            extracted['tau'].view(*batch_shape, 1) * extracted['beta']
         ).sum(dim=-1)  # shape = (*batch_shape, features)
-        log_likelihood = td.Bernoulli(
-            logits=logits
-        ).log_prob(self.labels).sum(dim=-1)
-        log_probability = log_likelihood + log_prior + log_det
-        return -(log_probability + log_det_tau)
+        return td.Independent(td.Bernoulli(logits=logits), 1)
+
+    def compute_likelihood(self, extracted):
+        return self.likelihood_object(extracted).log_prob(self.labels)
 
     @property
     def mean(self):
+        if self._modified:
+            raise ValueError("Reference mean unavailable for modified dataset")
         path = Path(__file__).parent.parent / 'true_moments' / \
             f'german_credit_moments.pt'
         if path.exists():
@@ -98,6 +177,9 @@ class GermanCredit(Posterior):
 
     @property
     def second_moment(self):
+        if self._modified:
+            raise ValueError(
+                "Reference second moment unavailable for modified dataset")
         path = Path(__file__).parent.parent / 'true_moments' / \
             f'german_credit_moments.pt'
         if path.exists():
@@ -109,101 +191,159 @@ class GermanCredit(Posterior):
     def variance(self):
         return self.second_moment - self.mean ** 2
 
-    def _compute_likelihood_parameters(self, x: torch.Tensor):
-        assert x.shape[-1] == 26
-        batch_shape = x.shape[:-1]
-        beta = x[..., 1:]
-        unnormalized_tau = x[..., 0]
-        tau, _ = bound_parameter(
-            unnormalized_tau,
-            batch_shape,
-            low=0.0,
-            high=torch.inf
-        )
-        logits = torch.einsum(
-            'nf,...f->...nf',
-            self.features,
-            tau.view(*batch_shape, 1) * beta
-        ).sum(dim=-1)  # shape = (*batch_shape, features)
-        return logits
 
-    def posterior_predictive_draws(self, posterior_draws: torch.Tensor, n_draws: int = 100) -> torch.Tensor:
-        logits = self._compute_likelihood_parameters(posterior_draws)
-        dist = td.Bernoulli(logits=logits)
-        return dist.sample((n_draws,))
-
-    def normalized_log_posterior_predictive_density(self, posterior_draws: torch.Tensor):
-        logits = self._compute_likelihood_parameters(posterior_draws)
-        log_likelihood = td.Bernoulli(logits=logits).log_prob(self.labels)
-        return log_likelihood.exp().mean(dim=-1).log().mean()  # Take mean instead of sum
-
-
-class SparseGermanCredit(Posterior):
+class SparseGermanCredit(Posterior1D):
     """
     tau ~ Gamma(0.5, 0.5)
     beta[i] ~ N(0, 1)
     lambda[i] ~ Gamma(0.5, 0.5)
     """
 
-    def __init__(self, n_data: int = None):
+    def __init__(self,
+                 n_data: int = None,
+                 use_hyperprior: bool = False,
+                 use_multimodal_hyperprior: bool = False):
+        if use_hyperprior and use_multimodal_hyperprior:
+            raise ValueError("Only set one hyperprior")
+
         self.features, self.labels = load_german_credit()
 
         if n_data is not None:
-            if not 0 < n_data <= len(self.labels):
+            if not 0 <= n_data <= len(self.labels):
                 raise ValueError(
                     "Number of used observations must be between zero and the number of total observations"
                 )
             self.features = self.features[:n_data]
             self.labels = self.labels[:n_data]
+        self._modified = (n_data is not None) and (not (use_hyperprior or use_multimodal_hyperprior))
 
-        super().__init__((51,))
+        self.use_hyperprior = use_hyperprior
+        self.use_multimodal_hyperprior = use_multimodal_hyperprior
 
-    def compute(self, x: torch.Tensor) -> torch.Tensor:
-        assert x.shape[-1] == 51
-        batch_shape = x.shape[:-1]
-
-        beta = x[..., 1:26]
-        unnormalized_tau = x[..., 0]
-        unconstrained_lambda = x[..., 26:]
-
-        tau, log_det_tau = bound_parameter(
-            unnormalized_tau,
-            batch_shape,
-            low=0.0,
-            high=torch.inf
-        )
-        lmbd, log_det_lmbd = bound_parameter(
-            unconstrained_lambda,
-            batch_shape,
-            low=0.0,
-            high=torch.inf
-        )
-        log_det = log_det_tau + log_det_lmbd
-
-        # Compute the log prior
-        log_prior = torch.add(
-            td.Gamma(0.5, 0.5).log_prob(tau),
-            torch.add(
-                td.Gamma(0.5, 0.5).log_prob(lmbd).sum(dim=-1),
-                td.Normal(0.0, 1.0).log_prob(beta).sum(dim=-1)
+        if self.use_hyperprior:
+            super().__init__(
+                posterior_parameters=ParameterDAG(
+                    {
+                        'beta_prior_scale': ParameterScalar(
+                            bound='positive',
+                            prior=td.LogNormal(
+                                loc=0.0,
+                                scale=1.0
+                            )
+                        ),
+                        'tau': ParameterScalar(
+                            bound='positive',
+                            prior=td.Gamma(
+                                concentration=0.5,
+                                rate=0.5
+                            )
+                        ),
+                        'beta': ParameterVector(
+                            25,
+                            prior=td.Normal,
+                            prior_kwargs={
+                                'loc': torch.zeros(25),
+                                'scale': 'beta_prior_scale'
+                            }
+                        ),
+                        'lambda': ParameterVector(
+                            25,
+                            bound='positive',
+                            prior=td.Gamma(0.5, 0.5)
+                        )
+                    },
+                    [
+                        ('beta_prior_scale', 'beta')
+                    ]
+                )
             )
-        )
+        elif self.use_multimodal_hyperprior:
+            super().__init__(
+                posterior_parameters=ParameterDAG(
+                    {
+                        'beta_prior_scale': ParameterScalar(
+                            bound='positive',
+                            prior=LogNormalMixture(
+                                loc0=0.0,
+                                scale0=1.0,
+                                loc1=2,
+                                scale1=1/10,
+                                weight0=0.5,
+                                weight1=0.5
+                            )
+                        ),
+                        'tau': ParameterScalar(
+                            bound='positive',
+                            prior=td.Gamma(
+                                concentration=0.5,
+                                rate=0.5
+                            )
+                        ),
+                        'beta': ParameterVector(
+                            25,
+                            prior=td.Normal,
+                            prior_kwargs={
+                                'loc': torch.zeros(25),
+                                'scale': 'beta_prior_scale'
+                            }
+                        ),
+                        'lambda': ParameterVector(
+                            25,
+                            bound='positive',
+                            prior=td.Gamma(0.5, 0.5)
+                        )
+                    },
+                    [
+                        ('beta_prior_scale', 'beta')
+                    ]
+                )
+            )
+        else:
+            super().__init__(
+                posterior_parameters=ParameterDAG({
+                    'tau': ParameterScalar(
+                        bound='positive',
+                        prior=td.Gamma(
+                            concentration=0.5,
+                            rate=0.5
+                        )
+                    ),
+                    'beta': ParameterVector(
+                        25,
+                        prior=td.Normal(
+                            loc=0.0,
+                            scale=1.0
+                        )
+                    ),
+                    'lambda': ParameterVector(
+                        25,
+                        bound='positive',
+                        prior=td.Gamma(0.5, 0.5)
+                    ),
+                })
+            )
 
-        # Compute the log likelihood
+    def likelihood_object(self,
+                          extracted: Dict[str, torch.Tensor]):
+        batch_shape = extracted['beta'].shape[:-1]
         logits = torch.einsum(
             'nf,...f->...nf',
             self.features,
-            tau.view(*batch_shape, 1) * beta * lmbd
+            (
+                extracted['tau'].view(*batch_shape, 1)
+                * extracted['beta']
+                * extracted['lambda']
+            )
         ).sum(dim=-1)  # shape = (*batch_shape, features)
-        log_likelihood = td.Bernoulli(
-            logits=logits
-        ).log_prob(self.labels).sum(dim=-1)
-        log_probability = log_likelihood + log_prior + log_det
+        return td.Independent(td.Bernoulli(logits=logits), 1)
 
-        return -log_probability
+    def compute_likelihood(self, extracted):
+        return self.likelihood_object(extracted).log_prob(self.labels)
 
     @property
     def mean(self):
+        if self._modified:
+            raise ValueError("Reference mean unavailable for modified dataset")
         path = Path(__file__).parent.parent / 'true_moments' / \
             f'sparse_german_credit_moments.pt'
         if path.exists():
@@ -213,6 +353,9 @@ class SparseGermanCredit(Posterior):
 
     @property
     def second_moment(self):
+        if self._modified:
+            raise ValueError(
+                "Reference second moment unavailable for modified dataset")
         path = Path(__file__).parent.parent / 'true_moments' / \
             f'sparse_german_credit_moments.pt'
         if path.exists():
@@ -224,45 +367,8 @@ class SparseGermanCredit(Posterior):
     def variance(self):
         return self.second_moment - self.mean ** 2
 
-    def _compute_likelihood_parameters(self, x: torch.Tensor):
-        assert x.shape[-1] == 51
-        batch_shape = x.shape[:-1]
 
-        beta = x[..., 1:26]
-        unnormalized_tau = x[..., 0]
-        unconstrained_lambda = x[..., 26:]
-
-        tau, _ = bound_parameter(
-            unnormalized_tau,
-            batch_shape,
-            low=0.0,
-            high=torch.inf
-        )
-        lmbd, _ = bound_parameter(
-            unconstrained_lambda,
-            batch_shape,
-            low=0.0,
-            high=torch.inf
-        )
-        logits = torch.einsum(
-            'nf,...f->...nf',
-            self.features,
-            tau.view(*batch_shape, 1) * beta * lmbd
-        ).sum(dim=-1)  # shape = (*batch_shape, features)
-        return logits
-
-    def posterior_predictive_draws(self, posterior_draws: torch.Tensor, n_draws: int = 100) -> torch.Tensor:
-        logits = self._compute_likelihood_parameters(posterior_draws)
-        dist = td.Bernoulli(logits=logits)
-        return dist.sample((n_draws,))
-
-    def normalized_log_posterior_predictive_density(self, posterior_draws: torch.Tensor):
-        logits = self._compute_likelihood_parameters(posterior_draws)
-        log_likelihood = td.Bernoulli(logits=logits).log_prob(self.labels)
-        return log_likelihood.exp().mean(dim=1).log().mean()  # Take mean instead of sum
-
-
-class SparseGermanCreditMissingData(Posterior):
+class SparseGermanCreditMissingData(Posterior1D):
     """
     tau ~ Gamma(0.5, 0.5)
     beta[i] ~ N(0, 1)
@@ -275,6 +381,7 @@ class SparseGermanCreditMissingData(Posterior):
     """
 
     def __init__(self, n_missing_rows=100):
+        raise NotImplementedError
         self.n_missing_rows = n_missing_rows
         self.full_features, self.labels = load_german_credit()
 

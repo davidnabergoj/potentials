@@ -1,4 +1,6 @@
 import torch
+import torch.distributions as td
+from torch.distributions import constraints as td_constraints
 import numpy as np
 from potentials.base import Potential
 
@@ -71,9 +73,11 @@ def generate_cholesky_factor(eigenvalues: torch.Tensor, seed: int = 0):
 
     Source: https://scicomp.stackexchange.com/a/34648.
     """
-    rotation = generate_rotation_matrix(n_dim=len(eigenvalues), seed=seed).to(eigenvalues)
+    rotation = generate_rotation_matrix(
+        n_dim=len(eigenvalues), seed=seed).to(eigenvalues)
     _, r = torch.linalg.qr(torch.diag(torch.sqrt(eigenvalues)) @ rotation.T)
-    r *= torch.sign(torch.diag(r))[:, None]  # For uniqueness: negate row of R with negative diagonal element
+    # For uniqueness: negate row of R with negative diagonal element
+    r *= torch.sign(torch.diag(r))[:, None]
     return r.T
 
 
@@ -94,7 +98,8 @@ def plot_2d(potential_2d,
     ys = torch.linspace(ymin, ymax, resolution)
     xx, yy = torch.meshgrid(xs, ys, indexing="xy")
     xx_flat, yy_flat = xx.ravel(), yy.ravel()
-    zz_flat = -potential_2d(torch.concat([xx_flat[:, None], yy_flat[:, None]], dim=1))
+    zz_flat = - \
+        potential_2d(torch.concat([xx_flat[:, None], yy_flat[:, None]], dim=1))
     zz_flat = zz_flat.exp()
     zz = zz_flat.view_as(xx)
 
@@ -118,3 +123,176 @@ def plot_2d(potential_2d,
     )
     ax.set_xlabel("Dim 0")
     ax.set_ylabel("Dim 1")
+
+
+def reduce_two_key_dataset(key1_index: torch.Tensor,
+                           key2_index: torch.Tensor,
+                           data: torch.Tensor,
+                           new_n_unique_key1_ids: int,
+                           reindex_key2: bool = False):
+    """
+    Processes a dataset with entries of the form (key1, key2, data).
+    The dataset should have `n` unique key1 values, `m` unique key2 values, and `k` data points.
+    The function reduces the number of unique key1 values to `new_unique_key1_counts`, whilst
+     also removing the associated data values.
+
+    :param torch.Tensor key1_values: values for key1 objects, indexed from 0 (inclusive) to n (exclusive).
+    :param torch.Tensor key2_values: values for key2 objects, indexed from 0 (inclusive) to m (exclusive).
+    :param bool reindex_key2: if True, reindexes key2, associated with reduced key1 entries.
+    :return: (tuple with 6 elements) new key1 index, new key2 index, new data, number of new key1 ids, 
+     number of new key2 ids, number of new data entries.
+    """
+    n_key1_ids = len(torch.unique(key1_index))
+
+    if new_n_unique_key1_ids == n_key1_ids:
+        n_key2_ids = len(torch.unique(key2_index))
+        return (
+            key1_index,
+            key2_index,
+            data,
+            n_key1_ids,
+            n_key2_ids,
+            len(data)
+        )
+    elif new_n_unique_key1_ids > n_key1_ids:
+        raise ValueError(
+            "Cannot have more IDs than the original dataset"
+        )
+
+    _count = [0] * n_key1_ids
+    _kept = []
+    for i in range(len(key1_index)):
+        if _count[key1_index[i]] < new_n_unique_key1_ids:
+            _count[key1_index[i]] += 1
+            _kept.append(i)
+    _kept = torch.tensor(_kept, dtype=torch.long)
+
+    # Modify data
+    new_data = data[_kept]
+    new_n_data = len(new_data)
+
+    # Modify key1 index
+    new_key1_index = key1_index[_kept]
+
+    # Modify key2 index
+    reduced_key2_index = key2_index[_kept]
+
+    if not reindex_key2:
+        new_n_key2_ids = len(torch.unique(reduced_key2_index))
+        return (
+            new_key1_index,
+            reduced_key2_index,
+            new_data,
+            n_key1_ids,
+            new_n_key2_ids,
+            new_n_data
+        )
+
+    reduced_key2_ids = torch.unique(reduced_key2_index)
+    new_key2_ids = torch.arange(len(reduced_key2_ids))
+
+    replacement = dict(zip(reduced_key2_ids.tolist(), new_key2_ids.tolist()))
+    for i in range(len(reduced_key2_index)):
+        reduced_key2_index[i] = replacement[int(reduced_key2_index[i])]
+
+    new_key2_index = reduced_key2_index
+    new_n_key2_ids = len(new_key2_ids)
+
+    return (
+        new_key1_index,
+        new_key2_index,
+        new_data,
+        n_key1_ids,
+        new_n_key2_ids,
+        new_n_data
+    )
+
+
+class LogNormalMixture(td.Distribution):
+    """A log-normal mixture distribution where:
+    log(X) ~ w0 * N(loc0, scale0) + w1 * N(loc1, scale1)
+    """
+
+    arg_constraints = {
+        'loc0': td_constraints.real,
+        'scale0': td_constraints.positive,
+        'loc1': td_constraints.real,
+        'scale1': td_constraints.positive,
+        'weight0': td_constraints.positive,
+        'weight1': td_constraints.positive,
+    }
+    support = td_constraints.positive
+    has_rsample = True
+
+    def __init__(self, loc0, scale0, loc1, scale1, weight0, weight1, validate_args=None):
+        """LogNormalMixture constructor.
+
+        :param float loc0: mean of first normal component (in log space).
+        :param float scale0: std dev of first normal component (in log space).
+        :param float loc1: mean of second normal component (in log space).
+        :param float scale1: std dev of second normal component (in log space).
+        :param float weight0: unnormalized weight for first component (will be normalized).
+        :param float weight1: unnormalized weight for second component (will be normalized).
+        """
+        self.loc0 = torch.as_tensor(loc0, dtype=torch.float32)
+        self.scale0 = torch.as_tensor(scale0, dtype=torch.float32)
+        self.loc1 = torch.as_tensor(loc1, dtype=torch.float32)
+        self.scale1 = torch.as_tensor(scale1, dtype=torch.float32)
+
+        self.weight0 = torch.as_tensor(weight0, dtype=torch.float32)
+        self.weight1 = torch.as_tensor(weight1, dtype=torch.float32)
+
+        # Normalize weights via softmax
+        weights = torch.stack([self.weight0, self.weight1], dim=-1)
+        self._probs = weights / torch.sum(weights)
+        self._w0 = self._probs[..., 0]
+        self._w1 = self._probs[..., 1]
+
+        self._n0 = td.Normal(self.loc0, self.scale0)
+        self._n1 = td.Normal(self.loc1, self.scale1)
+
+        batch_shape = torch.broadcast_shapes(
+            self.loc0.shape, self.scale0.shape,
+            self.loc1.shape, self.scale1.shape,
+            self._w0.shape
+        )
+        super().__init__(batch_shape=batch_shape, validate_args=validate_args)
+
+    def log_prob(self, x):
+        if self._validate_args:
+            self._validate_sample(x)
+
+        log_x = x.log()
+
+        # log p(x) for each lognormal component = log N(log x | loc, scale) - log x
+        lp0 = self._n0.log_prob(log_x) - log_x
+        lp1 = self._n1.log_prob(log_x) - log_x
+
+        # log-sum-exp with weights: log(w0 * p0 + w1 * p1)
+        log_w0 = self._w0.log()
+        log_w1 = self._w1.log()
+
+        return torch.logaddexp(log_w0 + lp0, log_w1 + lp1)
+
+    def rsample(self, sample_shape=torch.Size()):
+        shape = self._extended_shape(sample_shape)
+        with torch.no_grad():
+            component = torch.bernoulli(self._w1.expand(shape)).bool()
+        eps = torch.randn(shape)
+        s0 = self.loc0 + self.scale0 * eps
+        s1 = self.loc1 + self.scale1 * eps
+        log_sample = torch.where(component, s1, s0)
+        return log_sample.exp()
+
+    @property
+    def mean(self):
+        m0 = torch.exp(self.loc0 + 0.5 * self.scale0 ** 2)
+        m1 = torch.exp(self.loc1 + 0.5 * self.scale1 ** 2)
+        return self._w0 * m0 + self._w1 * m1
+
+    @property
+    def variance(self):
+        ex2_0 = torch.exp(2 * self.loc0 + 2 * self.scale0 ** 2)
+        ex2_1 = torch.exp(2 * self.loc1 + 2 * self.scale1 ** 2)
+        ex2 = self._w0 * ex2_0 + self._w1 * ex2_1
+        return ex2 - self.mean ** 2
