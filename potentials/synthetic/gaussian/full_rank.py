@@ -37,6 +37,18 @@ class FullRankGaussian(Potential):
     def sample(self, batch_shape: Union[torch.Size, Tuple[int]]) -> torch.Tensor:
         return self.dist.sample(batch_shape)
 
+    @property
+    def mean(self):
+        return self.loc
+
+    @property
+    def variance(self):
+        return torch.diagonal(self.dist.covariance_matrix, dim1=-2, dim2=-1)
+
+    @property
+    def normalization_constant(self) -> float:
+        return 1.0
+
 
 class DecomposedFullRankGaussian(FullRankGaussian):
     """
