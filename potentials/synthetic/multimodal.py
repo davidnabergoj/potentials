@@ -36,9 +36,9 @@ class TenRandomlyPositionedGaussians(RandomlyPositionedGaussians):
 class GaussianChain(Mixture):
     def __init__(self,
                  event_shape: Union[Tuple[int, ...], int],
-                 means: list[float],
-                 scales: list[float],
-                 weights: list[float]):
+                 means: List[float],
+                 scales: List[float],
+                 weights: List[float]):
         assert len(torch.as_tensor(means).shape) == 1
         assert len(torch.as_tensor(scales).shape) == 1
         assert len(torch.as_tensor(weights).shape) == 1

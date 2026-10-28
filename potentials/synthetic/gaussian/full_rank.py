@@ -10,9 +10,9 @@ class FullRankGaussian(Potential):
         if cov is None and cholesky_lower is None:
             raise ValueError("At least one of covariance and the cholesky factor must be provided")
         if cov is not None:
-            assert mu.shape == cov.shape[:-1], f"{mu.shape = }, {cov.shape = }"
+            assert mu.shape == cov.shape[:-1], f"mu.shape = {mu.shape!r}, cov.shape = {cov.shape!r}"
         elif cholesky_lower is not None:
-            assert mu.shape == cholesky_lower.shape[:-1], f"{mu.shape = }, {cholesky_lower.shape = }"
+            assert mu.shape == cholesky_lower.shape[:-1], f"mu.shape = {mu.shape!r}, cholesky_lower.shape = {cholesky_lower.shape!r}"
         event_shape = mu.shape
         super().__init__(event_shape)
 
@@ -36,6 +36,18 @@ class FullRankGaussian(Potential):
 
     def sample(self, batch_shape: Union[torch.Size, Tuple[int]]) -> torch.Tensor:
         return self.dist.sample(batch_shape)
+
+    @property
+    def mean(self):
+        return self.loc
+
+    @property
+    def variance(self):
+        return torch.diagonal(self.dist.covariance_matrix, dim1=-2, dim2=-1)
+
+    @property
+    def normalization_constant(self) -> float:
+        return 1.0
 
 
 class DecomposedFullRankGaussian(FullRankGaussian):

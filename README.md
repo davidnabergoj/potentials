@@ -1,17 +1,25 @@
-# Benchmark potentials in PyTorch
+# Benchmark distributions in PyTorch
 
-This package provides potential functions to benchmark sampling and optimization algorithms.
+This package provides probability density functions to benchmark sampling and optimization algorithms.
+The name potentials is used as a reference to the negative log probability density function.
+The package is in the process of changing.
 
-Synthetic potentials include:
+Synthetic examples include:
 * Standard Gaussian
 * Diagonal Gaussian (several variants)
 * Block diagonal Gaussian (several variants)
 * Full rank Gaussian (several variants)
+* Gaussian mixture (several variants)
 * Multimodal (several variants)
-* Funnel
+* Funnel (several variants)
+* Banana
+* Funana
 * Rosenbrock
+* Student's t
+* Double well
+* Phi^4 lattice field theory
 
-Real-world potentials include various model posteriors:
+Real-world examples include various model posteriors:
 * Eight schools
 * German credit
 * Sparse German credit
@@ -20,8 +28,6 @@ Real-world potentials include various model posteriors:
 * Radon (varying intercepts and slopes)
 * Synthetic item response theory
 * Stochastic volatility model
-
-Image-based potentials include $\phi^4$ lattice field theory targets with varying lattice sizes.
 
 ## Usage instructions
 The main components in the package are callable `Potential` objects.
@@ -59,11 +65,18 @@ Install the package directly from Github:
 pip install git+https://github.com/davidnabergoj/potentials.git
 ```
 
-To alternatively configure the package for local development, clone the repository and install dependencies as follows:
+To alternatively configure the package for local development, clone the repository and install it in editable mode:
 
 ```
 git clone git@github.com:davidnabergoj/potentials.git
-pip install -r requirements.txt
+cd potentials
+pip install -e .
+```
+
+Run the tests with:
+```
+pip install pytest
+pytest -m "not local_only"
 ```
 
 ## Citation
@@ -82,3 +95,7 @@ BibTex entry:
     note = {arxiv:2412.17136}
 }
 ```
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.

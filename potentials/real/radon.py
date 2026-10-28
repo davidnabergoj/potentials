@@ -610,7 +610,7 @@ if __name__ == '__main__':
         RadonVaryingIntercepts(n_data=_n_data),
         RadonVaryingInterceptsAndSlopes(n_data=_n_data)
     ]:
-        print(f'{len(torch.unique(target.county_idx))=}')
+        print(f'len(torch.unique(target.county_idx))={len(torch.unique(target.county_idx))!r}')
 
         # print(target.mean.shape)
         # print(target.second_moment.shape)

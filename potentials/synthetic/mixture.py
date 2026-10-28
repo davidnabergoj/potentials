@@ -19,7 +19,7 @@ class Mixture(Potential):
             raise ValueError("Expected at least 1 Potential object, but got 0")
         if len(potentials) != len(weights):
             raise ValueError(
-                f"Expected {len(potentials) = } to be equal to {len(weights) = }, but got different values"
+                f"Expected len(potentials) = {len(potentials)!r} to be equal to len(weights) = {len(weights)!r}, but got different values"
             )
         if len(set([p.event_shape for p in potentials])) != 1:
             raise ValueError("Expected all potentials to have the same event shape, but got different values")
