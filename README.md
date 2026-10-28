@@ -1,8 +1,10 @@
-# Benchmark potentials in PyTorch
+# Benchmark distributions in PyTorch
 
-This package provides potential functions to benchmark sampling and optimization algorithms.
+This package provides probability density functions to benchmark sampling and optimization algorithms.
+The name potentials is used as a reference to the negative log probability density function.
+The package is in the process of changing.
 
-Synthetic potentials include:
+Synthetic examples include:
 * Standard Gaussian
 * Diagonal Gaussian (several variants)
 * Block diagonal Gaussian (several variants)
@@ -11,7 +13,7 @@ Synthetic potentials include:
 * Funnel
 * Rosenbrock
 
-Real-world potentials include various model posteriors:
+Real-world examples include various model posteriors:
 * Eight schools
 * German credit
 * Sparse German credit
@@ -20,8 +22,6 @@ Real-world potentials include various model posteriors:
 * Radon (varying intercepts and slopes)
 * Synthetic item response theory
 * Stochastic volatility model
-
-Image-based potentials include $\phi^4$ lattice field theory targets with varying lattice sizes.
 
 ## Usage instructions
 The main components in the package are callable `Potential` objects.
