@@ -26,6 +26,9 @@ jobs:
         # CPU-only torch wheels: the runners have no GPU and the CUDA wheels are several GB
         python -m pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
         python -m pip install flake8 pytest
+    - name: Build and install package
+      run: |
+        python -m pip install .
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
