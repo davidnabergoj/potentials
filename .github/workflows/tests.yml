@@ -26,15 +26,15 @@ jobs:
         # CPU-only torch wheels: the runners have no GPU and the CUDA wheels are several GB
         python -m pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
         python -m pip install flake8 pytest
-    - name: Build and install package
-      run: |
-        python -m pip install .
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --extend-exclude=build
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics --extend-exclude=build
+    - name: Build and install package
+      run: |
+        python -m pip install .
     - name: Test with pytest
       run: |
         python -m pytest -m "not local_only"

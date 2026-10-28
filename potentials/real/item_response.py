@@ -236,13 +236,13 @@ class SyntheticItemResponseTheory(Posterior1D):
 
 if __name__ == '__main__':
     u = SyntheticItemResponseTheory(n_data=1500)
-    print(f'{u.responses.shape=}, {u.n_responses=}')
-    print(f'{u.student_index.shape=}, {u.n_students=}')
-    print(f'{u.question_index.shape=}, {u.n_questions=}')
-    print(f'{u.event_shape=}')
+    print(f'u.responses.shape={u.responses.shape!r}, u.n_responses={u.n_responses!r}')
+    print(f'u.student_index.shape={u.student_index.shape!r}, u.n_students={u.n_students!r}')
+    print(f'u.question_index.shape={u.question_index.shape!r}, u.n_questions={u.n_questions!r}')
+    print(f'u.event_shape={u.event_shape!r}')
     print()
-    print(f'{len(torch.unique(u.student_index))=}')
-    print(f'{len(torch.unique(u.question_index))=}')
+    print(f'len(torch.unique(u.student_index))={len(torch.unique(u.student_index))!r}')
+    print(f'len(torch.unique(u.question_index))={len(torch.unique(u.question_index))!r}')
 
     torch.manual_seed(0)
     out = u(torch.randn(size=(5, *u.event_shape)))

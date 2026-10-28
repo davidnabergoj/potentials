@@ -10,9 +10,9 @@ class FullRankGaussian(Potential):
         if cov is None and cholesky_lower is None:
             raise ValueError("At least one of covariance and the cholesky factor must be provided")
         if cov is not None:
-            assert mu.shape == cov.shape[:-1], f"{mu.shape = }, {cov.shape = }"
+            assert mu.shape == cov.shape[:-1], f"mu.shape = {mu.shape!r}, cov.shape = {cov.shape!r}"
         elif cholesky_lower is not None:
-            assert mu.shape == cholesky_lower.shape[:-1], f"{mu.shape = }, {cholesky_lower.shape = }"
+            assert mu.shape == cholesky_lower.shape[:-1], f"mu.shape = {mu.shape!r}, cholesky_lower.shape = {cholesky_lower.shape!r}"
         event_shape = mu.shape
         super().__init__(event_shape)
 

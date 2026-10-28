@@ -9,9 +9,15 @@ Synthetic examples include:
 * Diagonal Gaussian (several variants)
 * Block diagonal Gaussian (several variants)
 * Full rank Gaussian (several variants)
+* Gaussian mixture (several variants)
 * Multimodal (several variants)
-* Funnel
+* Funnel (several variants)
+* Banana
+* Funana
 * Rosenbrock
+* Student's t
+* Double well
+* Phi^4 lattice field theory
 
 Real-world examples include various model posteriors:
 * Eight schools
@@ -59,11 +65,18 @@ Install the package directly from Github:
 pip install git+https://github.com/davidnabergoj/potentials.git
 ```
 
-To alternatively configure the package for local development, clone the repository and install dependencies as follows:
+To alternatively configure the package for local development, clone the repository and install it in editable mode:
 
 ```
 git clone git@github.com:davidnabergoj/potentials.git
-pip install -r requirements.txt
+cd potentials
+pip install -e .
+```
+
+Run the tests with:
+```
+pip install pytest
+pytest -m "not local_only"
 ```
 
 ## Citation
@@ -82,3 +95,7 @@ BibTex entry:
     note = {arxiv:2412.17136}
 }
 ```
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
